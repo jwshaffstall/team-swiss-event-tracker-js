@@ -1,0 +1,97 @@
+:root {
+	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+	color-scheme: dark;
+	color: #f8fafc;
+	background: #020617;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: radial-gradient(circle at top, #1e293b, #020617 50%);
+}
+
+main {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 1.5rem;
+	display: grid;
+	gap: 1rem;
+}
+
+.top-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.card {
+	background: rgba(15, 23, 42, 0.9);
+	border: 1px solid #334155;
+	border-radius: 0.6rem;
+	padding: 1rem;
+}
+
+.toolbar {
+	display: flex;
+	gap: 0.8rem;
+	flex-wrap: wrap;
+}
+
+label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	font-size: 0.9rem;
+}
+
+input,
+select,
+button {
+	background: #0f172a;
+	color: #e2e8f0;
+	border: 1px solid #475569;
+	border-radius: 0.4rem;
+	padding: 0.45rem;
+}
+
+button {
+	cursor: pointer;
+}
+
+button:hover {
+	border-color: #94a3b8;
+}
+
+button.danger {
+	border-color: #ef4444;
+}
+
+.teams-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 0.7rem;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+th,
+td {
+	border: 1px solid #334155;
+	padding: 0.4rem;
+	text-align: left;
+}
+
+ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	gap: 0.5rem;
+}
