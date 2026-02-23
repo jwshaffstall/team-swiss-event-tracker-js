@@ -1,3 +1,7 @@
+/**
+ * Browser entry point for the Team Swiss Event Tracker UI.
+ * Manages in-memory UI state, persistence hooks, and DOM rendering/events.
+ */
 import { downloadPublishedHtml } from './lib/publish.js';
 import { loadState, saveState } from './lib/storage.js';
 import { assignPlayersToDraftTables, buildBalancedTableSizes } from './lib/draftTables.js';
@@ -35,15 +39,28 @@ if (!state.events.length) {
 	saveState(state);
 }
 
+/**
+ * Returns the event currently selected in application state.
+ *
+ * @returns {object|null} Active event or null when the selection is invalid.
+ */
 function getActiveEvent() {
 	return state.events.find((event) => event.id === state.activeEventId) ?? null;
 }
 
+/**
+ * Persists the current state snapshot and re-renders the UI.
+ */
 function persistAndRender() {
 	saveState(state);
 	render();
 }
 
+/**
+ * Applies a mutation callback to the active event and refreshes the interface.
+ *
+ * @param {(event: object) => object} mutator Pure transformation for active event data.
+ */
 function updateActiveEvent(mutator) {
 	const index = state.events.findIndex((event) => event.id === state.activeEventId);
 	if (index === -1) {
@@ -53,6 +70,12 @@ function updateActiveEvent(mutator) {
 	persistAndRender();
 }
 
+/**
+ * Produces a stable 32-bit hash for deterministic shuffle seeding.
+ *
+ * @param {string} value Input string to hash.
+ * @returns {number} Unsigned 32-bit hash value.
+ */
 function hashString(value) {
 	let hash = 2166136261;
 	for (const char of value) {
@@ -62,6 +85,12 @@ function hashString(value) {
 	return hash >>> 0;
 }
 
+/**
+ * Creates a deterministic pseudo-random number generator from a seed.
+ *
+ * @param {number} seed Integer seed.
+ * @returns {() => number} RNG function returning values in [0, 1).
+ */
 function createSeededRng(seed) {
 	let stateValue = seed >>> 0;
 	return () => {
@@ -72,6 +101,12 @@ function createSeededRng(seed) {
 	};
 }
 
+/**
+ * Checks whether any seat in a round has non-zero score input.
+ *
+ * @param {{matches: Array<{playerMatches: Array<{winsA?: number, winsB?: number, draws?: number}>}>}} round Round model.
+ * @returns {boolean} True when at least one score has been entered.
+ */
 function hasEnteredScores(round) {
 	return round.matches.some((match) =>
 		match.playerMatches.some(

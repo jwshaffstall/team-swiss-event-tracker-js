@@ -1,3 +1,6 @@
+/**
+ * Integration-style unit tests for playerDisplay.test.
+ */
 import { describe, expect, it } from 'vitest';
 import {
 	formatPlayerDisplayName,
@@ -6,6 +9,9 @@ import {
 	getTeamInitials,
 } from '../src/lib/playerDisplay.js';
 
+/**
+ * Verifies player display helper formatting behavior and fallback naming.
+ */
 describe('player display formatting', () => {
 	it('builds team initials from team name', () => {
 		expect(getTeamInitials('Team Swiss Event Tracker')).toBe('TSET');

@@ -11,6 +11,12 @@ export const MAX_TEAM_COUNT = 16;
 export const MIN_PLAYERS_PER_TEAM = 1;
 export const MAX_PLAYERS_PER_TEAM = 8;
 
+/**
+ * Validates team and player-count boundaries for event creation/resizing.
+ *
+ * @param {number} teamCount Number of teams.
+ * @param {number} playersPerTeam Number of players on each team.
+ */
 function validateEventStructure(teamCount, playersPerTeam) {
 	if (!Number.isInteger(teamCount) || teamCount < MIN_TEAM_COUNT || teamCount > MAX_TEAM_COUNT) {
 		throw new Error(
@@ -28,6 +34,13 @@ function validateEventStructure(teamCount, playersPerTeam) {
 	}
 }
 
+/**
+ * Creates a new team skeleton with generated IDs and default player labels.
+ *
+ * @param {number} index Zero-based team index.
+ * @param {number} playersPerTeam Number of players to initialize.
+ * @returns {{id: string, name: string, players: Array<{id: string, name: string}>}} Team model.
+ */
 export function createTeam(index, playersPerTeam) {
 	return {
 		id: crypto.randomUUID(),
@@ -39,6 +52,12 @@ export function createTeam(index, playersPerTeam) {
 	};
 }
 
+/**
+ * Creates a new Swiss event with an initial roster and no rounds.
+ *
+ * @param {{name: string, teamCount: number, playersPerTeam: number}} params Event creation options.
+ * @returns {object} Event model.
+ */
 export function createEvent({ name, teamCount, playersPerTeam }) {
 	validateEventStructure(teamCount, playersPerTeam);
 	return {
@@ -85,6 +104,14 @@ function shuffle(values, rng) {
 	return shuffled;
 }
 
+/**
+ * Resizes team count and roster size while preserving existing IDs when possible.
+ * Existing rounds are cleared when structure changes.
+ *
+ * @param {object} event Existing event.
+ * @param {{teamCount: number, playersPerTeam: number}} options New structure options.
+ * @returns {object} Updated event.
+ */
 export function resizeEventStructure(event, { teamCount, playersPerTeam }) {
 	validateEventStructure(teamCount, playersPerTeam);
 
@@ -355,6 +382,14 @@ function tryPairPlayers(
 	return null;
 }
 
+/**
+ * Builds the next Swiss round pairing players across teams using standings and
+ * repeat-opponent avoidance heuristics.
+ *
+ * @param {object} event Event to pair.
+ * @param {{randomize?: boolean, rng?: () => number}} [options] Pairing options.
+ * @returns {object} Event copy with one appended round.
+ */
 export function generateNextRound(event, options = {}) {
 	const { randomize = false, rng = Math.random } = options;
 	const allPlayers = event.teams.flatMap((team) =>
@@ -453,6 +488,12 @@ function summarizeTeamMatch(match) {
 	return { teamAWins, teamBWins, gameWinsA, gameWinsB };
 }
 
+/**
+ * Calculates team standings and tie-breakers from all recorded rounds.
+ *
+ * @param {object} event Event with round results.
+ * @returns {Array<object>} Sorted standings table.
+ */
 export function calculateStandings(event) {
 	const table = new Map(
 		event.teams.map((team) => [
@@ -530,6 +571,14 @@ export function calculateStandings(event) {
 	});
 }
 
+/**
+ * Validates best-of-three per-seat score entry constraints.
+ *
+ * @param {number|string} winsA Games won by player A.
+ * @param {number|string} winsB Games won by player B.
+ * @param {number|string} [draws=0] Number of drawn games.
+ * @returns {boolean} True when values are non-negative integers within limits.
+ */
 export function validatePlayerMatchScore(winsA, winsB, draws = 0) {
 	const a = Number(winsA);
 	const b = Number(winsB);

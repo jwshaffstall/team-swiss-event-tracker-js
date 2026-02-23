@@ -1,3 +1,6 @@
+/**
+ * Integration-style unit tests for swiss.test.
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	calculateStandings,
@@ -21,6 +24,9 @@ function createDeterministicRng(seed = 7) {
 	};
 }
 
+/**
+ * Exercises Swiss pairing, standings, validation, and related utilities.
+ */
 describe('swiss event engine', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -183,6 +189,9 @@ describe('swiss event engine', () => {
 	});
 });
 
+/**
+ * Covers storage persistence and publishable HTML snapshot generation.
+ */
 describe('storage and publish utilities', () => {
 	beforeEach(() => {
 		localStorage.clear();
