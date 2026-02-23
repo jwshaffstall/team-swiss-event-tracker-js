@@ -33,3 +33,7 @@ npm run dev
 - Pairings prioritize each player facing opponents from new teams while still weighting Swiss-adjacent team standings.
 - Team-vs-team rematches are deprioritized but may happen when needed to complete valid pairings.
 - GitHub Pages project URL is `https://<user>.github.io/team-swiss-event-tracker-js/`; root-domain paths like `/src/main.js` are outside this project's Pages scope.
+
+## License
+
+Released into the public domain under the [Unlicense](LICENSE.md).
