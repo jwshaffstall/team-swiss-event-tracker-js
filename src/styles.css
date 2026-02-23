@@ -12,12 +12,13 @@
 body {
 	margin: 0;
 	background: radial-gradient(circle at top, #1e293b, #020617 50%);
+	min-height: 100vh;
 }
 
 main {
 	max-width: 1200px;
 	margin: 0 auto;
-	padding: 1.5rem;
+	padding: 1.5rem 1rem 2rem;
 	display: grid;
 	gap: 1rem;
 }
@@ -26,6 +27,8 @@ main {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 0.75rem;
+	flex-wrap: wrap;
 }
 
 .card {
@@ -36,9 +39,9 @@ main {
 }
 
 .toolbar {
-	display: flex;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 	gap: 0.8rem;
-	flex-wrap: wrap;
 }
 
 label {
@@ -56,6 +59,7 @@ button {
 	border: 1px solid #475569;
 	border-radius: 0.4rem;
 	padding: 0.45rem;
+	width: 100%;
 }
 
 button {
@@ -76,9 +80,15 @@ button.danger {
 	gap: 0.7rem;
 }
 
+.table-wrap {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
 table {
 	width: 100%;
 	border-collapse: collapse;
+	min-width: 620px;
 }
 
 th,
@@ -94,4 +104,22 @@ ul {
 	margin: 0;
 	display: grid;
 	gap: 0.5rem;
+}
+
+@media (max-width: 767px) {
+	main {
+		padding: 1rem 0.75rem 1.5rem;
+	}
+
+	h1 {
+		font-size: 1.5rem;
+	}
+
+	.toolbar {
+		grid-template-columns: 1fr;
+	}
+
+	.card {
+		padding: 0.8rem;
+	}
 }

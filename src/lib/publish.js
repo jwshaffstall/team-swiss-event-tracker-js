@@ -38,8 +38,12 @@ export function generatePublishedHtml(event) {
 					const teamB = teamsById.get(match.teamBId);
 					const seatRows = match.playerMatches
 						.map((pm) => {
-							const aPlayer = teamA.players.find((player) => player.id === pm.teamAPlayerId);
-							const bPlayer = teamB.players.find((player) => player.id === pm.teamBPlayerId);
+							const aPlayer = teamA.players.find(
+								(player) => player.id === pm.teamAPlayerId
+							);
+							const bPlayer = teamB.players.find(
+								(player) => player.id === pm.teamBPlayerId
+							);
 							return `<tr><td>${pm.seat + 1}</td><td>${escapeHtml(aPlayer?.name ?? 'Unknown')}</td><td>${pm.winsA}</td><td>${pm.draws ?? 0}</td><td>${pm.winsB}</td><td>${escapeHtml(bPlayer?.name ?? 'Unknown')}</td></tr>`;
 						})
 						.join('');
