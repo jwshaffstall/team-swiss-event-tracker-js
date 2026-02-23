@@ -35,4 +35,4 @@ npm run dev
 
 ## License
 
-Released into the public domain under the [Unlicense](UNLICENSE).
+Released into the public domain under the [Unlicense](LICENSE.md).
