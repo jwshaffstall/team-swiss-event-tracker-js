@@ -79,13 +79,14 @@ function renderPairings(event) {
 		<td>${pm.seat + 1}</td>
 		<td>${playerA?.name ?? 'Unknown'}</td>
 		<td><input type="number" min="0" max="2" data-score="${round.id}:${match.id}:${pm.id}:A" value="${pm.winsA}" /></td>
+		<td><input type="number" min="0" max="3" data-score="${round.id}:${match.id}:${pm.id}:D" value="${pm.draws ?? 0}" /></td>
 		<td><input type="number" min="0" max="2" data-score="${round.id}:${match.id}:${pm.id}:B" value="${pm.winsB}" /></td>
 		<td>${playerB?.name ?? 'Unknown'}</td>
 	</tr>`;
 						})
 						.join('');
 					return `<article class="card"><h3>${teamA.name} vs ${teamB.name}</h3>
-	<table><thead><tr><th>Seat</th><th>${teamA.name}</th><th>Wins</th><th>Wins</th><th>${teamB.name}</th></tr></thead><tbody>${seatRows}</tbody></table>
+	<table><thead><tr><th>Seat</th><th>${teamA.name}</th><th>Wins</th><th>Draws</th><th>Wins</th><th>${teamB.name}</th></tr></thead><tbody>${seatRows}</tbody></table>
 </article>`;
 				})
 				.join('');
@@ -226,13 +227,25 @@ function wireHandlers() {
 				const playerMatch = match.playerMatches.find((item) => item.id === playerMatchId);
 				if (side === 'A') {
 					playerMatch.winsA = value;
+				} else if (side === 'D') {
+					playerMatch.draws = value;
 				} else {
 					playerMatch.winsB = value;
 				}
-				if (!validatePlayerMatchScore(playerMatch.winsA, playerMatch.winsB)) {
-					window.alert('Each player match must be BO3-valid (2-0, 2-1, 1-2, 0-2, or 1-1 draw).');
+				if (
+					!validatePlayerMatchScore(
+						playerMatch.winsA,
+						playerMatch.winsB,
+						playerMatch.draws ?? 0
+					)
+				) {
+					window.alert(
+						'Each player match must have wins from 0 to 2, with wins + draws totaling between 0 and 3 games.'
+					);
 					if (side === 'A') {
 						playerMatch.winsA = 0;
+					} else if (side === 'D') {
+						playerMatch.draws = 0;
 					} else {
 						playerMatch.winsB = 0;
 					}

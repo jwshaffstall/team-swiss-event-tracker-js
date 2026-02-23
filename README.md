@@ -4,7 +4,7 @@ Offline-first static website for running **T-team / P-players-per-team MTG team 
 
 - Unlimited rounds (create next round on demand)
 - Team/player editing at any time
-- Player match results by seat (0 to 3 total games played)
+- Player match results by seat (wins are 0 to 2, plus optional draws, with up to 3 games total)
 - Auto team standings + tie breakers (Buchholz and OMW%)
 - Local storage for multiple events
 - Publish current event state into a standalone static HTML snapshot
@@ -22,7 +22,7 @@ npm run dev
 - `npm run build` - build static site
 - `npm run preview` - preview production build
 - `npm run lint` - run ESLint
-- `npm run format` - run Prettier (tabs)
+- `npm run format` - run Prettier (tabs, width 4)
 - `npm run format:check` - verify formatting
 - `npm run test` - run Vitest suite
 

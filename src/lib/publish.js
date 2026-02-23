@@ -40,10 +40,10 @@ export function generatePublishedHtml(event) {
 						.map((pm) => {
 							const aPlayer = teamA.players.find((player) => player.id === pm.teamAPlayerId);
 							const bPlayer = teamB.players.find((player) => player.id === pm.teamBPlayerId);
-							return `<tr><td>${pm.seat + 1}</td><td>${escapeHtml(aPlayer?.name ?? 'Unknown')}</td><td>${pm.winsA}-${pm.winsB}</td><td>${escapeHtml(bPlayer?.name ?? 'Unknown')}</td></tr>`;
+							return `<tr><td>${pm.seat + 1}</td><td>${escapeHtml(aPlayer?.name ?? 'Unknown')}</td><td>${pm.winsA}</td><td>${pm.draws ?? 0}</td><td>${pm.winsB}</td><td>${escapeHtml(bPlayer?.name ?? 'Unknown')}</td></tr>`;
 						})
 						.join('');
-					return `<article class="match"><h3>${escapeHtml(teamA.name)} vs ${escapeHtml(teamB.name)}</h3><table><thead><tr><th>Seat</th><th>${escapeHtml(teamA.name)}</th><th>Games</th><th>${escapeHtml(teamB.name)}</th></tr></thead><tbody>${seatRows}</tbody></table></article>`;
+					return `<article class="match"><h3>${escapeHtml(teamA.name)} vs ${escapeHtml(teamB.name)}</h3><table><thead><tr><th>Seat</th><th>${escapeHtml(teamA.name)}</th><th>Wins</th><th>Draws</th><th>Wins</th><th>${escapeHtml(teamB.name)}</th></tr></thead><tbody>${seatRows}</tbody></table></article>`;
 				})
 				.join('');
 			return `<section><h2>Round ${round.roundNumber}</h2>${matchesHtml}</section>`;

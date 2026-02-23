@@ -110,6 +110,7 @@ export function generateNextRound(event) {
 				teamBPlayerId: teamB.players[seat]?.id,
 				winsA: 0,
 				winsB: 0,
+				draws: 0,
 			})),
 		};
 	});
@@ -223,14 +224,22 @@ export function calculateStandings(event) {
 	});
 }
 
-export function validatePlayerMatchScore(winsA, winsB) {
+export function validatePlayerMatchScore(winsA, winsB, draws = 0) {
 	const a = Number(winsA);
 	const b = Number(winsB);
-	if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
+	const d = Number(draws);
+	if (
+		!Number.isInteger(a) ||
+		!Number.isInteger(b) ||
+		!Number.isInteger(d) ||
+		a < 0 ||
+		b < 0 ||
+		d < 0
+	) {
 		return false;
 	}
 	if (a > 2 || b > 2) {
 		return false;
 	}
-	return a === 2 || b === 2 || (a === 1 && b === 1);
+	return a + b + d <= 3;
 }

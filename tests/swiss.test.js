@@ -51,11 +51,13 @@ describe('swiss event engine', () => {
 		expect(standings[0].buchholz).toBeGreaterThanOrEqual(0);
 	});
 
-	it('validates best-of-3 player results', () => {
+	it('validates player results with 0-3 total games played', () => {
 		expect(validatePlayerMatchScore(2, 1)).toBe(true);
-		expect(validatePlayerMatchScore(1, 1)).toBe(true);
-		expect(validatePlayerMatchScore(0, 0)).toBe(false);
+		expect(validatePlayerMatchScore(1, 1, 1)).toBe(true);
+		expect(validatePlayerMatchScore(0, 0)).toBe(true);
 		expect(validatePlayerMatchScore(3, 0)).toBe(false);
+		expect(validatePlayerMatchScore(2, 2)).toBe(false);
+		expect(validatePlayerMatchScore(2, 1, 1)).toBe(false);
 	});
 });
 
