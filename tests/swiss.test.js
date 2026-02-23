@@ -21,19 +21,42 @@ describe('swiss event engine', () => {
 		expect(event.rounds).toEqual([]);
 	});
 
-	it('generates pairings without teammate pairings and avoids rematches', () => {
+	it('generates player pairings without teammate pairings', () => {
 		let event = createEvent({ name: 'League', teamCount: 4, playersPerTeam: 2 });
 		event = generateNextRound(event);
 		event = generateNextRound(event);
 
-		const seen = new Set();
 		for (const round of event.rounds) {
 			for (const match of round.matches) {
 				expect(match.teamAId).not.toBe(match.teamBId);
-				const key = [match.teamAId, match.teamBId].sort().join(':');
-				expect(seen.has(key)).toBe(false);
-				seen.add(key);
+				expect(match.playerMatches).toHaveLength(1);
 			}
+		}
+	});
+
+	it('prioritizes new opponent teams per player across rounds', () => {
+		let event = createEvent({ name: 'League', teamCount: 6, playersPerTeam: 2 });
+		event = generateNextRound(event);
+		event = generateNextRound(event);
+		event = generateNextRound(event);
+
+		const seenByPlayer = new Map();
+		for (const team of event.teams) {
+			for (const player of team.players) {
+				seenByPlayer.set(player.id, new Set());
+			}
+		}
+
+		for (const round of event.rounds) {
+			for (const match of round.matches) {
+				const pm = match.playerMatches[0];
+				seenByPlayer.get(pm.teamAPlayerId).add(match.teamBId);
+				seenByPlayer.get(pm.teamBPlayerId).add(match.teamAId);
+			}
+		}
+
+		for (const seenTeams of seenByPlayer.values()) {
+			expect(seenTeams.size).toBeGreaterThanOrEqual(3);
 		}
 	});
 
@@ -47,7 +70,7 @@ describe('swiss event engine', () => {
 			}
 		}
 		const standings = calculateStandings(event);
-		expect(standings[0].matchPoints).toBe(3);
+		expect(standings[0].matchPoints).toBe(6);
 		expect(standings[0].buchholz).toBeGreaterThanOrEqual(0);
 	});
 

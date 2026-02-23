@@ -31,6 +31,10 @@ main {
 	gap: 1rem;
 }
 
+section {
+	min-width: 0;
+}
+
 .top-row {
 	display: flex;
 	justify-content: space-between;
@@ -53,6 +57,7 @@ main {
 	border: 1px solid #334155;
 	border-radius: 0.6rem;
 	padding: 1rem;
+	overflow: hidden;
 }
 
 .toolbar {
@@ -120,6 +125,7 @@ td {
 	border: 1px solid #334155;
 	padding: 0.4rem;
 	text-align: left;
+	vertical-align: top;
 }
 
 ul {
@@ -159,6 +165,12 @@ ul {
 		padding: 0.7rem 0.75rem;
 	}
 
+	section h2,
+	.card h2,
+	.card h3 {
+		overflow-wrap: anywhere;
+	}
+
 	input,
 	select,
 	button {
@@ -172,5 +184,15 @@ ul {
 	.card {
 		padding: 0.8rem;
 		border-radius: 0.55rem;
+	}
+
+	table {
+		min-width: 480px;
+		font-size: 0.9rem;
+	}
+
+	th,
+	td {
+		padding: 0.35rem;
 	}
 }

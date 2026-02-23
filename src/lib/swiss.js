@@ -30,13 +30,33 @@ function orderedPairKey(a, b) {
 	return [a, b].sort().join(':');
 }
 
-function existingOpponentSet(event) {
+function existingTeamOpponentSet(event) {
 	const seen = new Set();
 	for (const round of event.rounds) {
 		for (const match of round.matches) {
 			seen.add(orderedPairKey(match.teamAId, match.teamBId));
 		}
 	}
+	return seen;
+}
+
+function playerOpponentTeamsMap(event) {
+	const seen = new Map();
+	for (const team of event.teams) {
+		for (const player of team.players) {
+			seen.set(player.id, new Set());
+		}
+	}
+
+	for (const round of event.rounds) {
+		for (const match of round.matches) {
+			for (const playerMatch of match.playerMatches) {
+				seen.get(playerMatch.teamAPlayerId)?.add(match.teamBId);
+				seen.get(playerMatch.teamBPlayerId)?.add(match.teamAId);
+			}
+		}
+	}
+
 	return seen;
 }
 
@@ -60,24 +80,83 @@ function scoreSort(teamA, teamB, standingsMap) {
 	return teamA.name.localeCompare(teamB.name);
 }
 
-function tryPairTeams(teams, seenOpponents, allowRematch = false) {
-	if (teams.length === 0) {
+function availableOpponentCount(player, players, playerOpponentsByTeam) {
+	const knownOpponents = playerOpponentsByTeam.get(player.id) ?? new Set();
+	return (
+		players.filter((candidate) => candidate.teamId !== player.teamId).length +
+		players.filter(
+			(candidate) =>
+				candidate.teamId !== player.teamId && !knownOpponents.has(candidate.teamId)
+		).length
+	);
+}
+
+function pairScore(playerA, playerB, standingsRank, playerOpponentsByTeam, seenTeamOpponents) {
+	const opponentTeamsForA = playerOpponentsByTeam.get(playerA.id) ?? new Set();
+	const opponentTeamsForB = playerOpponentsByTeam.get(playerB.id) ?? new Set();
+	const aNewTeam = opponentTeamsForA.has(playerB.teamId) ? 0 : 12;
+	const bNewTeam = opponentTeamsForB.has(playerA.teamId) ? 0 : 12;
+	const aRank = standingsRank.get(playerA.teamId) ?? standingsRank.size;
+	const bRank = standingsRank.get(playerB.teamId) ?? standingsRank.size;
+	const swissProximity = Math.max(0, 8 - Math.abs(aRank - bRank));
+	const teamRematchPenalty = seenTeamOpponents.has(orderedPairKey(playerA.teamId, playerB.teamId))
+		? -6
+		: 0;
+
+	return aNewTeam + bNewTeam + swissProximity + teamRematchPenalty;
+}
+
+function tryPairPlayers(players, standingsRank, playerOpponentsByTeam, seenTeamOpponents) {
+	if (players.length === 0) {
 		return [];
 	}
 
-	const [first, ...rest] = teams;
-	for (let index = 0; index < rest.length; index += 1) {
-		const candidate = rest[index];
-		const alreadyPlayed = seenOpponents.has(orderedPairKey(first.id, candidate.id));
-		if (!allowRematch && alreadyPlayed) {
-			continue;
+	const orderedPlayers = [...players].sort((a, b) => {
+		const aOptions = availableOpponentCount(a, players, playerOpponentsByTeam);
+		const bOptions = availableOpponentCount(b, players, playerOpponentsByTeam);
+		if (aOptions !== bOptions) {
+			return aOptions - bOptions;
 		}
-		const remainder = rest.filter((_, restIndex) => restIndex !== index);
-		const recursion = tryPairTeams(remainder, seenOpponents, allowRematch);
+		return (standingsRank.get(a.teamId) ?? 0) - (standingsRank.get(b.teamId) ?? 0);
+	});
+
+	const [first, ...rest] = orderedPlayers;
+	const candidates = rest
+		.filter((candidate) => candidate.teamId !== first.teamId)
+		.map((candidate) => ({
+			candidate,
+			score: pairScore(
+				first,
+				candidate,
+				standingsRank,
+				playerOpponentsByTeam,
+				seenTeamOpponents
+			),
+		}))
+		.sort((a, b) => b.score - a.score)
+		.map((entry) => entry.candidate);
+
+	for (const candidate of candidates) {
+		const remainder = rest.filter((player) => player.id !== candidate.id);
+		const recursion = tryPairPlayers(
+			remainder,
+			standingsRank,
+			playerOpponentsByTeam,
+			seenTeamOpponents
+		);
 		if (recursion) {
-			return [{ teamAId: first.id, teamBId: candidate.id }, ...recursion];
+			return [
+				{
+					teamAId: first.teamId,
+					teamBId: candidate.teamId,
+					playerAId: first.id,
+					playerBId: candidate.id,
+				},
+				...recursion,
+			];
 		}
 	}
+
 	return null;
 }
 
@@ -85,35 +164,44 @@ export function generateNextRound(event) {
 	if (event.teams.length % 2 !== 0) {
 		throw new Error('Team count must be even for pairings.');
 	}
+	const allPlayers = event.teams.flatMap((team) =>
+		team.players.map((player) => ({ id: player.id, teamId: team.id }))
+	);
+	if (allPlayers.length % 2 !== 0) {
+		throw new Error('Total player count must be even for pairings.');
+	}
+
 	const standingsMap = getStandingsMap(event);
 	const orderedTeams = [...event.teams].sort((a, b) => scoreSort(a, b, standingsMap));
-	const seenOpponents = existingOpponentSet(event);
-	let pairings = tryPairTeams(orderedTeams, seenOpponents, false);
-	if (!pairings) {
-		pairings = tryPairTeams(orderedTeams, seenOpponents, true);
-	}
+	const standingsRank = new Map(orderedTeams.map((team, index) => [team.id, index]));
+	const seenTeamOpponents = existingTeamOpponentSet(event);
+	const playerOpponentsByTeam = playerOpponentTeamsMap(event);
+	const pairings = tryPairPlayers(
+		allPlayers,
+		standingsRank,
+		playerOpponentsByTeam,
+		seenTeamOpponents
+	);
 	if (!pairings) {
 		throw new Error('Could not generate valid pairings for this round.');
 	}
 
-	const matches = pairings.map((pair) => {
-		const teamA = event.teams.find((team) => team.id === pair.teamAId);
-		const teamB = event.teams.find((team) => team.id === pair.teamBId);
-		return {
-			id: crypto.randomUUID(),
-			teamAId: pair.teamAId,
-			teamBId: pair.teamBId,
-			playerMatches: Array.from({ length: event.playersPerTeam }, (_, seat) => ({
+	const matches = pairings.map((pair) => ({
+		id: crypto.randomUUID(),
+		teamAId: pair.teamAId,
+		teamBId: pair.teamBId,
+		playerMatches: [
+			{
 				id: crypto.randomUUID(),
-				seat,
-				teamAPlayerId: teamA.players[seat]?.id,
-				teamBPlayerId: teamB.players[seat]?.id,
+				seat: 0,
+				teamAPlayerId: pair.playerAId,
+				teamBPlayerId: pair.playerBId,
 				winsA: 0,
 				winsB: 0,
 				draws: 0,
-			})),
-		};
-	});
+			},
+		],
+	}));
 
 	return {
 		...event,
