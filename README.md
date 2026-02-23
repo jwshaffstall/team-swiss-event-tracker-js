@@ -8,6 +8,7 @@ Offline-first static website for running **T-team / P-players-per-team MTG team 
 - Team/player editing at any time
 - Active event resize controls (team count and players per team)
 - Draft table placement mode with arbitrary table count (1..total players) and teammate separation
+- Re-shuffle buttons for draft tables and latest round pairings (randomized within swiss/fairness constraints)
 - Player display prefixes with team initials + seat number (for example `TS-2 Player B`)
 - Player match results per pairing (wins are 0 to 2, plus optional draws, with up to 3 games total)
 - Auto team standings + tie breakers (Buchholz and OMW%)

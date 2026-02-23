@@ -22,6 +22,7 @@ const uiState = {
 	matchupTeamId: null,
 	draftLayoutMode: false,
 	draftTableCount: null,
+	draftShuffleNonce: 0,
 };
 
 if (!state.events.length) {
@@ -46,6 +47,60 @@ function updateActiveEvent(mutator) {
 	}
 	state.events[index] = mutator(structuredClone(state.events[index]));
 	persistAndRender();
+}
+
+function hashString(value) {
+	let hash = 2166136261;
+	for (const char of value) {
+		hash ^= char.charCodeAt(0);
+		hash = Math.imul(hash, 16777619);
+	}
+	return hash >>> 0;
+}
+
+function createSeededRng(seed) {
+	let stateValue = seed >>> 0;
+	return () => {
+		stateValue = (stateValue + 0x6d2b79f5) | 0;
+		let next = Math.imul(stateValue ^ (stateValue >>> 15), 1 | stateValue);
+		next ^= next + Math.imul(next ^ (next >>> 7), 61 | next);
+		return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+function hasEnteredScores(round) {
+	return round.matches.some((match) =>
+		match.playerMatches.some(
+			(playerMatch) =>
+				(playerMatch.winsA ?? 0) !== 0 ||
+				(playerMatch.winsB ?? 0) !== 0 ||
+				(playerMatch.draws ?? 0) !== 0
+		)
+	);
+}
+
+function reshuffleLatestRound(event) {
+	if (!event.rounds.length) {
+		throw new Error('No rounds available to reshuffle.');
+	}
+
+	const previousRounds = event.rounds.slice(0, -1);
+	const latestRound = event.rounds[event.rounds.length - 1];
+	const baseEvent = { ...event, rounds: previousRounds };
+	const regenerated = generateNextRound(baseEvent, { randomize: true });
+	const shuffledRound = regenerated.rounds[regenerated.rounds.length - 1];
+
+	return {
+		...event,
+		rounds: [
+			...previousRounds,
+			{
+				...shuffledRound,
+				id: latestRound.id,
+				roundNumber: latestRound.roundNumber,
+			},
+		],
+	};
 }
 
 function renderEventSelector(activeEvent) {
@@ -277,7 +332,11 @@ function renderDraftTableLayout(event) {
 	const { totalPlayers, minTableCount, maxTableCount, selectedTableCount } =
 		getDraftLayoutContext(event);
 	const tableSizes = buildBalancedTableSizes(totalPlayers, selectedTableCount);
-	const assignment = assignPlayersToDraftTables(event, tableSizes);
+	const draftSeed = hashString(`${event.id}:${selectedTableCount}:${uiState.draftShuffleNonce}`);
+	const assignment = assignPlayersToDraftTables(event, tableSizes, {
+		randomize: true,
+		rng: createSeededRng(draftSeed),
+	});
 	const teammateSummary =
 		assignment.sameTableTeammatePairs === 0
 			? 'No teammates share a table in this layout.'
@@ -314,6 +373,7 @@ function renderDraftTableLayout(event) {
 		<label>Draft table count
 			<input id="draft-table-count" type="number" min="${minTableCount}" max="${maxTableCount}" value="${selectedTableCount}" />
 		</label>
+		<button id="reshuffle-draft-tables" type="button">Re-shuffle Draft Tables</button>
 		<p class="draft-summary">${totalPlayers} players. ${selectedTableCount} ${formatLabel} (${formatTableSizes(tableSizes)}). ${teammateSummary}${sealedSummary}</p>
 	</div>
 	<div class="draft-table-grid">${tableCards}</div>
@@ -354,6 +414,7 @@ function render() {
 		<button id="resize-event">Apply Event Size</button>
 		<button id="delete-event" class="danger">Delete Active Event</button>
 		<button id="next-round">Generate Next Round</button>
+		<button id="reshuffle-latest-round">Re-shuffle Latest Round</button>
 		<button id="publish-event">Publish HTML Snapshot</button>
 	</section>
 	<section class="card">
@@ -382,6 +443,7 @@ function wireHandlers() {
 	document.querySelector('#event-select').addEventListener('change', (event) => {
 		state.activeEventId = event.target.value;
 		uiState.matchupTeamId = null;
+		uiState.draftShuffleNonce = 0;
 		persistAndRender();
 	});
 
@@ -394,6 +456,14 @@ function wireHandlers() {
 	if (draftTableCountInput) {
 		draftTableCountInput.addEventListener('change', (event) => {
 			uiState.draftTableCount = Number(event.target.value);
+			render();
+		});
+	}
+
+	const reshuffleDraftTablesButton = document.querySelector('#reshuffle-draft-tables');
+	if (reshuffleDraftTablesButton) {
+		reshuffleDraftTablesButton.addEventListener('click', () => {
+			uiState.draftShuffleNonce += 1;
 			render();
 		});
 	}
@@ -418,6 +488,7 @@ function wireHandlers() {
 		const event = createEvent({ name, teamCount, playersPerTeam });
 		state.events.push(event);
 		state.activeEventId = event.id;
+		uiState.draftShuffleNonce = 0;
 		persistAndRender();
 	});
 
@@ -446,6 +517,7 @@ function wireHandlers() {
 			return;
 		}
 
+		uiState.draftShuffleNonce = 0;
 		updateActiveEvent((event) => resizeEventStructure(event, { teamCount, playersPerTeam }));
 	});
 
@@ -461,9 +533,33 @@ function wireHandlers() {
 
 	document.querySelector('#next-round').addEventListener('click', () => {
 		try {
-			updateActiveEvent((event) => generateNextRound(event));
+			updateActiveEvent((event) => generateNextRound(event, { randomize: true }));
 		} catch (error) {
 			window.alert(error instanceof Error ? error.message : 'Unable to create next round.');
+		}
+	});
+
+	document.querySelector('#reshuffle-latest-round').addEventListener('click', () => {
+		try {
+			const activeEvent = getActiveEvent();
+			if (!activeEvent.rounds.length) {
+				window.alert('No rounds available to reshuffle.');
+				return;
+			}
+			const latestRound = activeEvent.rounds[activeEvent.rounds.length - 1];
+			if (
+				hasEnteredScores(latestRound) &&
+				!window.confirm(
+					'Re-shuffling the latest round will clear scores entered for that round. Continue?'
+				)
+			) {
+				return;
+			}
+			updateActiveEvent((event) => reshuffleLatestRound(event));
+		} catch (error) {
+			window.alert(
+				error instanceof Error ? error.message : 'Unable to reshuffle the latest round.'
+			);
 		}
 	});
 

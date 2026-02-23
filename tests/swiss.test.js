@@ -9,6 +9,14 @@ import {
 import { generatePublishedHtml } from '../src/lib/publish.js';
 import { getStorageKey, loadState, saveState } from '../src/lib/storage.js';
 
+function createDeterministicRng(seed = 7) {
+	let stateValue = seed >>> 0;
+	return () => {
+		stateValue = (stateValue * 1664525 + 1013904223) >>> 0;
+		return stateValue / 4294967296;
+	};
+}
+
 describe('swiss event engine', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -60,6 +68,37 @@ describe('swiss event engine', () => {
 
 		for (const seenTeams of seenByPlayer.values()) {
 			expect(seenTeams.size).toBeGreaterThanOrEqual(3);
+		}
+	});
+
+	it('maximizes team-level opponent spread across players and rounds when possible', () => {
+		let event = createEvent({ name: 'League', teamCount: 10, playersPerTeam: 3 });
+		event = generateNextRound(event);
+		event = generateNextRound(event);
+		event = generateNextRound(event);
+
+		const seenOpponentsByTeam = new Map(event.teams.map((team) => [team.id, new Set()]));
+		for (const round of event.rounds) {
+			for (const match of round.matches) {
+				seenOpponentsByTeam.get(match.teamAId).add(match.teamBId);
+				seenOpponentsByTeam.get(match.teamBId).add(match.teamAId);
+			}
+		}
+
+		for (const seenOpponents of seenOpponentsByTeam.values()) {
+			expect(seenOpponents.size).toBe(9);
+		}
+	});
+
+	it('can generate randomized but valid pairings', () => {
+		const rng = createDeterministicRng(99);
+		const event = createEvent({ name: 'Randomized', teamCount: 8, playersPerTeam: 2 });
+		const nextRound = generateNextRound(event, { randomize: true, rng });
+
+		expect(nextRound.rounds).toHaveLength(1);
+		expect(nextRound.rounds[0].matches).toHaveLength(8);
+		for (const match of nextRound.rounds[0].matches) {
+			expect(match.teamAId).not.toBe(match.teamBId);
 		}
 	});
 

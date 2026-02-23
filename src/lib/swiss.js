@@ -53,6 +53,15 @@ function resizeTeamPlayers(team, playersPerTeam) {
 	};
 }
 
+function shuffle(values, rng) {
+	const shuffled = [...values];
+	for (let index = shuffled.length - 1; index > 0; index -= 1) {
+		const swapIndex = Math.floor(rng() * (index + 1));
+		[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+	}
+	return shuffled;
+}
+
 export function resizeEventStructure(event, { teamCount, playersPerTeam }) {
 	if (!Number.isInteger(teamCount) || teamCount < 1) {
 		throw new Error('Team count must be a whole number >= 1.');
@@ -82,10 +91,6 @@ export function resizeEventStructure(event, { teamCount, playersPerTeam }) {
 		teams: nextTeams,
 		rounds: structureChanged ? [] : event.rounds,
 	};
-}
-
-function orderedPairKey(a, b) {
-	return [a, b].sort().join(':');
 }
 
 function getOpponentCount(opponentCounts, teamId, opponentId) {
@@ -153,7 +158,7 @@ function getStandingsMap(event) {
 	return new Map(standings.map((entry) => [entry.teamId, entry]));
 }
 
-function scoreSort(teamA, teamB, standingsMap) {
+function scoreSort(teamA, teamB, standingsMap, teamTieBreakers) {
 	const a = standingsMap.get(teamA.id);
 	const b = standingsMap.get(teamB.id);
 	if (!a || !b) {
@@ -164,6 +169,13 @@ function scoreSort(teamA, teamB, standingsMap) {
 	}
 	if (a.gamePoints !== b.gamePoints) {
 		return b.gamePoints - a.gamePoints;
+	}
+	if (teamTieBreakers) {
+		const tieBreakA = teamTieBreakers.get(teamA.id) ?? 0;
+		const tieBreakB = teamTieBreakers.get(teamB.id) ?? 0;
+		if (tieBreakA !== tieBreakB) {
+			return tieBreakA - tieBreakB;
+		}
 	}
 	return teamA.name.localeCompare(teamB.name);
 }
@@ -224,7 +236,8 @@ function tryPairPlayers(
 	standingsRank,
 	playerOpponentsByTeam,
 	historicalTeamOpponents,
-	currentRoundTeamOpponents
+	currentRoundTeamOpponents,
+	playerTieBreakers
 ) {
 	if (players.length === 0) {
 		return [];
@@ -236,7 +249,17 @@ function tryPairPlayers(
 		if (aOptions !== bOptions) {
 			return aOptions - bOptions;
 		}
-		return (standingsRank.get(a.teamId) ?? 0) - (standingsRank.get(b.teamId) ?? 0);
+		const aRank = standingsRank.get(a.teamId) ?? 0;
+		const bRank = standingsRank.get(b.teamId) ?? 0;
+		if (aRank !== bRank) {
+			return aRank - bRank;
+		}
+		const aTieBreak = playerTieBreakers.get(a.id) ?? 0;
+		const bTieBreak = playerTieBreakers.get(b.id) ?? 0;
+		if (aTieBreak !== bTieBreak) {
+			return aTieBreak - bTieBreak;
+		}
+		return a.id.localeCompare(b.id);
 	});
 
 	const [first, ...rest] = orderedPlayers;
@@ -252,8 +275,17 @@ function tryPairPlayers(
 				historicalTeamOpponents,
 				currentRoundTeamOpponents
 			),
+			tieBreak: playerTieBreakers.get(candidate.id) ?? 0,
 		}))
-		.sort((a, b) => b.score - a.score)
+		.sort((a, b) => {
+			if (a.score !== b.score) {
+				return b.score - a.score;
+			}
+			if (a.tieBreak !== b.tieBreak) {
+				return a.tieBreak - b.tieBreak;
+			}
+			return a.candidate.id.localeCompare(b.candidate.id);
+		})
 		.map((entry) => entry.candidate);
 
 	for (const candidate of candidates) {
@@ -265,7 +297,8 @@ function tryPairPlayers(
 			standingsRank,
 			playerOpponentsByTeam,
 			historicalTeamOpponents,
-			currentRoundTeamOpponents
+			currentRoundTeamOpponents,
+			playerTieBreakers
 		);
 		if (recursion) {
 			return [
@@ -285,29 +318,39 @@ function tryPairPlayers(
 	return null;
 }
 
-export function generateNextRound(event) {
+export function generateNextRound(event, options = {}) {
+	const { randomize = false, rng = Math.random } = options;
+
 	if (event.teams.length % 2 !== 0) {
 		throw new Error('Team count must be even for pairings.');
 	}
 	const allPlayers = event.teams.flatMap((team) =>
 		team.players.map((player) => ({ id: player.id, teamId: team.id }))
 	);
+	const playersForPairing = randomize ? shuffle(allPlayers, rng) : allPlayers;
 	if (allPlayers.length % 2 !== 0) {
 		throw new Error('Total player count must be even for pairings.');
 	}
 
 	const standingsMap = getStandingsMap(event);
-	const orderedTeams = [...event.teams].sort((a, b) => scoreSort(a, b, standingsMap));
+	const teamTieBreakers = new Map(event.teams.map((team) => [team.id, randomize ? rng() : 0]));
+	const orderedTeams = [...event.teams].sort((a, b) =>
+		scoreSort(a, b, standingsMap, randomize ? teamTieBreakers : null)
+	);
 	const standingsRank = new Map(orderedTeams.map((team, index) => [team.id, index]));
 	const historicalTeamOpponents = teamOpponentCountsMap(event);
 	const currentRoundTeamOpponents = new Map();
 	const playerOpponentsByTeam = playerOpponentTeamsMap(event);
+	const playerTieBreakers = new Map(
+		playersForPairing.map((player, index) => [player.id, randomize ? rng() : index])
+	);
 	const pairings = tryPairPlayers(
-		allPlayers,
+		playersForPairing,
 		standingsRank,
 		playerOpponentsByTeam,
 		historicalTeamOpponents,
-		currentRoundTeamOpponents
+		currentRoundTeamOpponents,
+		playerTieBreakers
 	);
 	if (!pairings) {
 		throw new Error('Could not generate valid pairings for this round.');

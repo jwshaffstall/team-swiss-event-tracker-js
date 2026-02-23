@@ -6,6 +6,14 @@ import {
 	listSuggestedDraftLayouts,
 } from '../src/lib/draftTables.js';
 
+function createDeterministicRng(seed = 1) {
+	let stateValue = seed >>> 0;
+	return () => {
+		stateValue = (stateValue * 1664525 + 1013904223) >>> 0;
+		return stateValue / 4294967296;
+	};
+}
+
 describe('draft table layouts', () => {
 	it('builds balanced table sizes for a chosen table count', () => {
 		expect(buildBalancedTableSizes(30, 4)).toEqual([8, 8, 7, 7]);
@@ -56,5 +64,25 @@ describe('draft table layouts', () => {
 			}
 		}
 		expect(assignment.sameTableTeammatePairs).toBe(4);
+	});
+
+	it('supports randomized reshuffles for draft table seating', () => {
+		const event = createEvent({ name: 'Shuffle Draft', teamCount: 10, playersPerTeam: 3 });
+		const tableSizes = [8, 8, 7, 7];
+		const baseline = assignPlayersToDraftTables(event, tableSizes);
+		const reshuffled = assignPlayersToDraftTables(event, tableSizes, {
+			randomize: true,
+			rng: createDeterministicRng(42),
+		});
+
+		const serialize = (assignment) =>
+			assignment.tables
+				.map((table) => table.players.map((player) => player.playerId).join(','))
+				.join('|');
+		expect(serialize(reshuffled)).not.toBe(serialize(baseline));
+
+		for (const table of reshuffled.tables) {
+			expect(table.players.length).toBe(table.capacity);
+		}
 	});
 });

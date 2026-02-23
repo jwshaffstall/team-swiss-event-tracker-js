@@ -176,6 +176,10 @@ td {
 	margin-bottom: 0.8rem;
 }
 
+.draft-controls button {
+	align-self: end;
+}
+
 .draft-summary {
 	margin: 0;
 	font-size: 0.92rem;

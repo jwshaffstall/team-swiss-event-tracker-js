@@ -6,6 +6,15 @@ function sum(values) {
 	return values.reduce((total, value) => total + value, 0);
 }
 
+function shuffle(values, rng) {
+	const shuffled = [...values];
+	for (let index = shuffled.length - 1; index > 0; index -= 1) {
+		const swapIndex = Math.floor(rng() * (index + 1));
+		[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+	}
+	return shuffled;
+}
+
 function teammatePairs(teamCount) {
 	if (teamCount < 2) {
 		return 0;
@@ -178,7 +187,13 @@ function assignUniqueSeatCounts(teams, tableSizes) {
 	return { counts, flow };
 }
 
-function chooseBestTableIndex(tableSizes, tableLoads, teamTableCounts, teamAssignedIndexes) {
+function chooseBestTableIndex(
+	tableSizes,
+	tableLoads,
+	teamTableCounts,
+	teamAssignedIndexes,
+	{ randomize, rng }
+) {
 	const choices = tableSizes
 		.map((size, tableIndex) => ({
 			tableIndex,
@@ -206,6 +221,7 @@ function chooseBestTableIndex(tableSizes, tableLoads, teamTableCounts, teamAssig
 				fillRatio,
 				minDistance,
 				totalDistance,
+				randomTie: randomize ? rng() : 0,
 			};
 		});
 
@@ -225,13 +241,16 @@ function chooseBestTableIndex(tableSizes, tableLoads, teamTableCounts, teamAssig
 		if (a.load !== b.load) {
 			return a.load - b.load;
 		}
+		if (a.randomTie !== b.randomTie) {
+			return a.randomTie - b.randomTie;
+		}
 		return a.tableIndex - b.tableIndex;
 	});
 
 	return choices[0]?.tableIndex ?? -1;
 }
 
-function distributeRemainingSeats(teams, tableSizes, teamTableCounts) {
+function distributeRemainingSeats(teams, tableSizes, teamTableCounts, { randomize, rng }) {
 	const tableLoads = Array(tableSizes.length).fill(0);
 	const remainingByTeam = teams.map((team, teamIndex) => {
 		const assigned = sum(teamTableCounts[teamIndex]);
@@ -250,11 +269,18 @@ function distributeRemainingSeats(teams, tableSizes, teamTableCounts) {
 	let remainingTotal = remainingByTeam.reduce((total, value) => total + value, 0);
 	while (remainingTotal > 0) {
 		const teamOrder = remainingByTeam
-			.map((remaining, teamIndex) => ({ remaining, teamIndex }))
+			.map((remaining, teamIndex) => ({
+				remaining,
+				teamIndex,
+				randomTie: randomize ? rng() : 0,
+			}))
 			.filter((entry) => entry.remaining > 0)
 			.sort((a, b) => {
 				if (a.remaining !== b.remaining) {
 					return b.remaining - a.remaining;
+				}
+				if (a.randomTie !== b.randomTie) {
+					return a.randomTie - b.randomTie;
 				}
 				return a.teamIndex - b.teamIndex;
 			});
@@ -265,7 +291,8 @@ function distributeRemainingSeats(teams, tableSizes, teamTableCounts) {
 				tableSizes,
 				tableLoads,
 				teamTableCounts[teamIndex],
-				teamAssignedIndexes[teamIndex]
+				teamAssignedIndexes[teamIndex],
+				{ randomize, rng }
 			);
 			if (tableIndex === -1) {
 				continue;
@@ -306,7 +333,9 @@ function summarizeAssignments(tables) {
 	return { sameTableTeammatePairs, maxTeammatesAtSingleTable };
 }
 
-export function assignPlayersToDraftTables(event, tableSizes) {
+export function assignPlayersToDraftTables(event, tableSizes, options = {}) {
+	const { randomize = false, rng = Math.random } = options;
+
 	if (!Array.isArray(tableSizes) || !tableSizes.length) {
 		throw new Error('At least one draft table is required.');
 	}
@@ -329,9 +358,13 @@ export function assignPlayersToDraftTables(event, tableSizes) {
 		);
 	}
 
+	const teamRandomOrder = new Map(event.teams.map((team) => [team.id, randomize ? rng() : 0]));
 	const orderedTeams = [...event.teams].sort((a, b) => {
 		if (a.players.length !== b.players.length) {
 			return b.players.length - a.players.length;
+		}
+		if (randomize) {
+			return teamRandomOrder.get(a.id) - teamRandomOrder.get(b.id);
 		}
 		return a.name.localeCompare(b.name);
 	});
@@ -344,23 +377,30 @@ export function assignPlayersToDraftTables(event, tableSizes) {
 	}));
 
 	const uniquePlan = assignUniqueSeatCounts(orderedTeams, tableSizes);
-	const teamTableCounts = distributeRemainingSeats(orderedTeams, tableSizes, uniquePlan.counts);
+	const teamTableCounts = distributeRemainingSeats(orderedTeams, tableSizes, uniquePlan.counts, {
+		randomize,
+		rng,
+	});
 
 	for (let teamIndex = 0; teamIndex < orderedTeams.length; teamIndex += 1) {
 		const team = orderedTeams[teamIndex];
 		const teamPlayers = [...team.players].sort((a, b) => a.name.localeCompare(b.name));
+		const randomizedTeamPlayers = randomize ? shuffle(teamPlayers, rng) : teamPlayers;
 		const assignedTableIndexes = teamTableCounts[teamIndex].flatMap((count, tableIndex) =>
 			Array.from({ length: count }, () => tableIndex)
 		);
+		const randomizedTableIndexes = randomize
+			? shuffle(assignedTableIndexes, rng)
+			: assignedTableIndexes;
 
-		if (assignedTableIndexes.length !== teamPlayers.length) {
+		if (randomizedTableIndexes.length !== randomizedTeamPlayers.length) {
 			throw new Error('Unable to place all players across the selected draft tables.');
 		}
 
-		for (let playerIndex = 0; playerIndex < teamPlayers.length; playerIndex += 1) {
-			const tableIndex = assignedTableIndexes[playerIndex];
+		for (let playerIndex = 0; playerIndex < randomizedTeamPlayers.length; playerIndex += 1) {
+			const tableIndex = randomizedTableIndexes[playerIndex];
 			const table = tables[tableIndex];
-			const player = teamPlayers[playerIndex];
+			const player = randomizedTeamPlayers[playerIndex];
 
 			table.players.push({
 				playerId: player.id,
