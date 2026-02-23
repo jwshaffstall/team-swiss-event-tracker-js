@@ -20,13 +20,13 @@ const app = document.querySelector('#app');
 const state = loadState();
 const uiState = {
 	matchupTeamId: null,
-	draftLayoutMode: false,
+	draftLayoutMode: true,
 	draftTableCount: null,
 	draftShuffleNonce: 0,
 };
 
 if (!state.events.length) {
-	state.events.push(createEvent({ name: 'Sample Event', teamCount: 4, playersPerTeam: 3 }));
+	state.events.push(createEvent({ name: 'Sample Event', teamCount: 8, playersPerTeam: 3 }));
 	state.activeEventId = state.events[0].id;
 	saveState(state);
 }
@@ -316,7 +316,7 @@ function getDraftLayoutContext(event) {
 	const minTableCount = 1;
 	const maxTableCount = totalPlayers;
 	if (!Number.isInteger(uiState.draftTableCount)) {
-		uiState.draftTableCount = Math.max(1, Math.ceil(totalPlayers / 8));
+		uiState.draftTableCount = Math.max(1, Math.round(totalPlayers / 8));
 	}
 	const selectedTableCount = Math.min(
 		maxTableCount,
@@ -406,7 +406,7 @@ function render() {
 	</header>
 	<section class="toolbar card">
 		<label>New event name <input id="new-event-name" placeholder="Weekend League" /></label>
-		<label>Teams <input id="new-event-teams" type="number" min="2" step="2" value="4" /></label>
+		<label>Teams <input id="new-event-teams" type="number" min="2" step="2" value="8" /></label>
 		<label>Players / team <input id="new-event-players" type="number" min="1" value="3" /></label>
 		<button id="create-event">Create Event</button>
 		<label>Resize teams <input id="resize-event-teams" type="number" min="1" value="${activeEvent.teams.length}" /></label>
