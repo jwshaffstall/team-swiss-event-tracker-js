@@ -72,8 +72,12 @@ function renderPairings(event) {
 					const teamB = teamMap.get(match.teamBId);
 					const seatRows = match.playerMatches
 						.map((pm) => {
-							const playerA = teamA.players.find((player) => player.id === pm.teamAPlayerId);
-							const playerB = teamB.players.find((player) => player.id === pm.teamBPlayerId);
+							const playerA = teamA.players.find(
+								(player) => player.id === pm.teamAPlayerId
+							);
+							const playerB = teamB.players.find(
+								(player) => player.id === pm.teamBPlayerId
+							);
 							return `<tr>
 		<td>${pm.seat + 1}</td>
 		<td>${playerA?.name ?? 'Unknown'}</td>
@@ -85,7 +89,7 @@ function renderPairings(event) {
 						})
 						.join('');
 					return `<article class="card"><h3>${teamA.name} vs ${teamB.name}</h3>
-	<table><thead><tr><th>Seat</th><th>${teamA.name}</th><th>Wins</th><th>Draws</th><th>Wins</th><th>${teamB.name}</th></tr></thead><tbody>${seatRows}</tbody></table>
+	<div class="table-wrap"><table><thead><tr><th>Seat</th><th>${teamA.name}</th><th>Wins</th><th>Draws</th><th>Wins</th><th>${teamB.name}</th></tr></thead><tbody>${seatRows}</tbody></table></div>
 </article>`;
 				})
 				.join('');
@@ -103,7 +107,7 @@ function renderStandings(event) {
 	<td>${row.buchholz.toFixed(2)}</td><td>${(row.opponentMatchWinRate * 100).toFixed(1)}%</td><td>${row.gamePoints}</td></tr>`
 		)
 		.join('');
-	return `<table><thead><tr><th>#</th><th>Team</th><th>MP</th><th>W-D-L</th><th>Buchholz</th><th>OMW%</th><th>Game Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
+	return `<div class="table-wrap"><table><thead><tr><th>#</th><th>Team</th><th>MP</th><th>W-D-L</th><th>Buchholz</th><th>OMW%</th><th>Game Pts</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function render() {
