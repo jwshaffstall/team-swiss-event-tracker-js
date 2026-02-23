@@ -12,6 +12,10 @@ import {
 	calculateStandings,
 	createEvent,
 	generateNextRound,
+	MAX_PLAYERS_PER_TEAM,
+	MAX_TEAM_COUNT,
+	MIN_PLAYERS_PER_TEAM,
+	MIN_TEAM_COUNT,
 	resizeEventStructure,
 	validatePlayerMatchScore,
 } from './lib/swiss.js';
@@ -406,11 +410,11 @@ function render() {
 	</header>
 	<section class="toolbar card">
 		<label>New event name <input id="new-event-name" placeholder="Weekend League" /></label>
-		<label>Teams <input id="new-event-teams" type="number" min="2" step="2" value="4" /></label>
-		<label>Players / team <input id="new-event-players" type="number" min="1" value="3" /></label>
+		<label>Teams <input id="new-event-teams" type="number" min="2" max="16" value="4" /></label>
+		<label>Players / team <input id="new-event-players" type="number" min="1" max="8" value="3" /></label>
 		<button id="create-event">Create Event</button>
-		<label>Resize teams <input id="resize-event-teams" type="number" min="1" value="${activeEvent.teams.length}" /></label>
-		<label>Resize players / team <input id="resize-event-players" type="number" min="1" value="${activeEvent.playersPerTeam}" /></label>
+		<label>Resize teams <input id="resize-event-teams" type="number" min="2" max="16" value="${activeEvent.teams.length}" /></label>
+		<label>Resize players / team <input id="resize-event-players" type="number" min="1" max="8" value="${activeEvent.playersPerTeam}" /></label>
 		<button id="resize-event">Apply Event Size</button>
 		<button id="delete-event" class="danger">Delete Active Event</button>
 		<button id="next-round">Generate Next Round</button>
@@ -477,12 +481,24 @@ function wireHandlers() {
 		const name = document.querySelector('#new-event-name').value;
 		const teamCount = Number(document.querySelector('#new-event-teams').value);
 		const playersPerTeam = Number(document.querySelector('#new-event-players').value);
-		if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount % 2 !== 0) {
-			window.alert('Team count must be an even number >= 2.');
+		if (
+			!Number.isInteger(teamCount) ||
+			teamCount < MIN_TEAM_COUNT ||
+			teamCount > MAX_TEAM_COUNT
+		) {
+			window.alert(
+				`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`
+			);
 			return;
 		}
-		if (!Number.isInteger(playersPerTeam) || playersPerTeam < 1) {
-			window.alert('Players per team must be >= 1.');
+		if (
+			!Number.isInteger(playersPerTeam) ||
+			playersPerTeam < MIN_PLAYERS_PER_TEAM ||
+			playersPerTeam > MAX_PLAYERS_PER_TEAM
+		) {
+			window.alert(
+				`Players per team must be a whole number between ${MIN_PLAYERS_PER_TEAM} and ${MAX_PLAYERS_PER_TEAM}.`
+			);
 			return;
 		}
 		const event = createEvent({ name, teamCount, playersPerTeam });
@@ -495,12 +511,24 @@ function wireHandlers() {
 	document.querySelector('#resize-event').addEventListener('click', () => {
 		const teamCount = Number(document.querySelector('#resize-event-teams').value);
 		const playersPerTeam = Number(document.querySelector('#resize-event-players').value);
-		if (!Number.isInteger(teamCount) || teamCount < 1) {
-			window.alert('Team count must be a whole number >= 1.');
+		if (
+			!Number.isInteger(teamCount) ||
+			teamCount < MIN_TEAM_COUNT ||
+			teamCount > MAX_TEAM_COUNT
+		) {
+			window.alert(
+				`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`
+			);
 			return;
 		}
-		if (!Number.isInteger(playersPerTeam) || playersPerTeam < 1) {
-			window.alert('Players per team must be a whole number >= 1.');
+		if (
+			!Number.isInteger(playersPerTeam) ||
+			playersPerTeam < MIN_PLAYERS_PER_TEAM ||
+			playersPerTeam > MAX_PLAYERS_PER_TEAM
+		) {
+			window.alert(
+				`Players per team must be a whole number between ${MIN_PLAYERS_PER_TEAM} and ${MAX_PLAYERS_PER_TEAM}.`
+			);
 			return;
 		}
 

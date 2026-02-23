@@ -6,6 +6,28 @@ const MATCH_POINTS = {
 	loss: 0,
 };
 
+export const MIN_TEAM_COUNT = 2;
+export const MAX_TEAM_COUNT = 16;
+export const MIN_PLAYERS_PER_TEAM = 1;
+export const MAX_PLAYERS_PER_TEAM = 8;
+
+function validateEventStructure(teamCount, playersPerTeam) {
+	if (!Number.isInteger(teamCount) || teamCount < MIN_TEAM_COUNT || teamCount > MAX_TEAM_COUNT) {
+		throw new Error(
+			`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`
+		);
+	}
+	if (
+		!Number.isInteger(playersPerTeam) ||
+		playersPerTeam < MIN_PLAYERS_PER_TEAM ||
+		playersPerTeam > MAX_PLAYERS_PER_TEAM
+	) {
+		throw new Error(
+			`Players per team must be a whole number between ${MIN_PLAYERS_PER_TEAM} and ${MAX_PLAYERS_PER_TEAM}.`
+		);
+	}
+}
+
 export function createTeam(index, playersPerTeam) {
 	return {
 		id: crypto.randomUUID(),
@@ -18,6 +40,7 @@ export function createTeam(index, playersPerTeam) {
 }
 
 export function createEvent({ name, teamCount, playersPerTeam }) {
+	validateEventStructure(teamCount, playersPerTeam);
 	return {
 		id: crypto.randomUUID(),
 		name: name?.trim() || `Event ${new Date().toLocaleDateString()}`,
@@ -63,12 +86,7 @@ function shuffle(values, rng) {
 }
 
 export function resizeEventStructure(event, { teamCount, playersPerTeam }) {
-	if (!Number.isInteger(teamCount) || teamCount < 1) {
-		throw new Error('Team count must be a whole number >= 1.');
-	}
-	if (!Number.isInteger(playersPerTeam) || playersPerTeam < 1) {
-		throw new Error('Players per team must be a whole number >= 1.');
-	}
+	validateEventStructure(teamCount, playersPerTeam);
 
 	const nextTeams = [];
 	const reusedTeams = event.teams.slice(0, teamCount);
@@ -151,6 +169,25 @@ function playerOpponentTeamsMap(event) {
 	}
 
 	return seen;
+}
+
+function playerRoundCountsMap(event) {
+	const counts = new Map();
+	for (const round of event.rounds) {
+		for (const match of round.matches) {
+			for (const playerMatch of match.playerMatches) {
+				counts.set(
+					playerMatch.teamAPlayerId,
+					(counts.get(playerMatch.teamAPlayerId) ?? 0) + 1
+				);
+				counts.set(
+					playerMatch.teamBPlayerId,
+					(counts.get(playerMatch.teamBPlayerId) ?? 0) + 1
+				);
+			}
+		}
+	}
+	return counts;
 }
 
 function getStandingsMap(event) {
@@ -320,17 +357,10 @@ function tryPairPlayers(
 
 export function generateNextRound(event, options = {}) {
 	const { randomize = false, rng = Math.random } = options;
-
-	if (event.teams.length % 2 !== 0) {
-		throw new Error('Team count must be even for pairings.');
-	}
 	const allPlayers = event.teams.flatMap((team) =>
 		team.players.map((player) => ({ id: player.id, teamId: team.id }))
 	);
-	const playersForPairing = randomize ? shuffle(allPlayers, rng) : allPlayers;
-	if (allPlayers.length % 2 !== 0) {
-		throw new Error('Total player count must be even for pairings.');
-	}
+	let playersForPairing = randomize ? shuffle(allPlayers, rng) : allPlayers;
 
 	const standingsMap = getStandingsMap(event);
 	const teamTieBreakers = new Map(event.teams.map((team) => [team.id, randomize ? rng() : 0]));
@@ -338,6 +368,24 @@ export function generateNextRound(event, options = {}) {
 		scoreSort(a, b, standingsMap, randomize ? teamTieBreakers : null)
 	);
 	const standingsRank = new Map(orderedTeams.map((team, index) => [team.id, index]));
+	if (playersForPairing.length % 2 !== 0) {
+		const participationCounts = playerRoundCountsMap(event);
+		const byeCandidates = [...playersForPairing].sort((a, b) => {
+			const aCount = participationCounts.get(a.id) ?? 0;
+			const bCount = participationCounts.get(b.id) ?? 0;
+			if (aCount !== bCount) {
+				return aCount - bCount;
+			}
+			const aRank = standingsRank.get(a.teamId) ?? standingsRank.size;
+			const bRank = standingsRank.get(b.teamId) ?? standingsRank.size;
+			if (aRank !== bRank) {
+				return bRank - aRank;
+			}
+			return a.id.localeCompare(b.id);
+		});
+		const byePlayer = byeCandidates[0];
+		playersForPairing = playersForPairing.filter((player) => player.id !== byePlayer.id);
+	}
 	const historicalTeamOpponents = teamOpponentCountsMap(event);
 	const currentRoundTeamOpponents = new Map();
 	const playerOpponentsByTeam = playerOpponentTeamsMap(event);

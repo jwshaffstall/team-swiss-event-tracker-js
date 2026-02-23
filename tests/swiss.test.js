@@ -3,6 +3,10 @@ import {
 	calculateStandings,
 	createEvent,
 	generateNextRound,
+	MAX_PLAYERS_PER_TEAM,
+	MAX_TEAM_COUNT,
+	MIN_PLAYERS_PER_TEAM,
+	MIN_TEAM_COUNT,
 	resizeEventStructure,
 	validatePlayerMatchScore,
 } from '../src/lib/swiss.js';
@@ -100,6 +104,34 @@ describe('swiss event engine', () => {
 		for (const match of nextRound.rounds[0].matches) {
 			expect(match.teamAId).not.toBe(match.teamBId);
 		}
+	});
+
+	it('supports odd team counts by assigning one player a bye each round', () => {
+		const event = createEvent({ name: 'Odd Teams', teamCount: 5, playersPerTeam: 3 });
+		const nextRound = generateNextRound(event);
+
+		expect(nextRound.rounds).toHaveLength(1);
+		expect(nextRound.rounds[0].matches).toHaveLength(7);
+		for (const match of nextRound.rounds[0].matches) {
+			expect(match.teamAId).not.toBe(match.teamBId);
+		}
+	});
+
+	it('enforces supported team and player bounds', () => {
+		expect(() =>
+			createEvent({
+				name: 'Too Small',
+				teamCount: MIN_TEAM_COUNT - 1,
+				playersPerTeam: MIN_PLAYERS_PER_TEAM,
+			})
+		).toThrow();
+		expect(() =>
+			createEvent({
+				name: 'Too Large',
+				teamCount: MAX_TEAM_COUNT,
+				playersPerTeam: MAX_PLAYERS_PER_TEAM + 1,
+			})
+		).toThrow();
 	});
 
 	it('computes standings and tie breakers from results', () => {
