@@ -9,6 +9,9 @@ import {
 
 const app = document.querySelector('#app');
 const state = loadState();
+const uiState = {
+	matchupTeamId: null,
+};
 
 if (!state.events.length) {
 	state.events.push(createEvent({ name: 'Sample Event', teamCount: 4, playersPerTeam: 3 }));
@@ -99,6 +102,13 @@ function renderPairings(event) {
 }
 
 function renderStandings(event) {
+	const headerTooltips = {
+		MP: 'Match Points: 3 for a team win, 1 for a draw, 0 for a loss.',
+		WDL: 'Match record shown as Wins-Draws-Losses.',
+		Buchholz: 'Total match points earned by all opponents faced.',
+		'OMW%': 'Opponent Match Win %: opponent match points divided by max possible points.',
+		'Game Pts': 'Total individual game wins scored across all seats and rounds.',
+	};
 	const standings = calculateStandings(event);
 	const rows = standings
 		.map(
@@ -107,7 +117,122 @@ function renderStandings(event) {
 	<td>${row.buchholz.toFixed(2)}</td><td>${(row.opponentMatchWinRate * 100).toFixed(1)}%</td><td>${row.gamePoints}</td></tr>`
 		)
 		.join('');
-	return `<div class="table-wrap"><table><thead><tr><th>#</th><th>Team</th><th>MP</th><th>W-D-L</th><th>Buchholz</th><th>OMW%</th><th>Game Pts</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+	return `<div class="table-wrap"><table><thead><tr>
+	<th>#</th>
+	<th>Team</th>
+	<th><span class="tooltip-label" tabindex="0" title="${headerTooltips.MP}">MP</span></th>
+	<th><span class="tooltip-label" tabindex="0" title="${headerTooltips.WDL}">W-D-L</span></th>
+	<th><span class="tooltip-label" tabindex="0" title="${headerTooltips.Buchholz}">Buchholz</span></th>
+	<th><span class="tooltip-label" tabindex="0" title="${headerTooltips['OMW%']}">OMW%</span></th>
+	<th><span class="tooltip-label" tabindex="0" title="${headerTooltips['Game Pts']}">Game Pts</span></th>
+	</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function summarizeMatchupHistory(event, teamId) {
+	const teamsById = new Map(event.teams.map((team) => [team.id, team]));
+	const selectedTeam = teamsById.get(teamId);
+	if (!selectedTeam) {
+		return [];
+	}
+
+	const historyByOpponent = new Map();
+	for (const round of event.rounds) {
+		for (const match of round.matches) {
+			const isTeamA = match.teamAId === teamId;
+			const isTeamB = match.teamBId === teamId;
+			if (!isTeamA && !isTeamB) {
+				continue;
+			}
+
+			const opponentId = isTeamA ? match.teamBId : match.teamAId;
+			const opponent = teamsById.get(opponentId);
+			const current =
+				historyByOpponent.get(opponentId) ??
+				{
+					opponentName: opponent?.name ?? 'Unknown Team',
+					teamMatches: 0,
+					teamWins: 0,
+					teamDraws: 0,
+					teamLosses: 0,
+					teamGameWins: 0,
+					teamGameLosses: 0,
+					playerMatchWins: 0,
+					playerMatchDraws: 0,
+					playerMatchLosses: 0,
+					playerGameWins: 0,
+					playerGameDraws: 0,
+					playerGameLosses: 0,
+				};
+
+			current.teamMatches += 1;
+			let seatWins = 0;
+			let seatLosses = 0;
+
+			for (const playerMatch of match.playerMatches) {
+				const myWins = isTeamA ? playerMatch.winsA : playerMatch.winsB;
+				const theirWins = isTeamA ? playerMatch.winsB : playerMatch.winsA;
+				const draws = playerMatch.draws ?? 0;
+
+				current.teamGameWins += myWins;
+				current.teamGameLosses += theirWins;
+				current.playerGameWins += myWins;
+				current.playerGameLosses += theirWins;
+				current.playerGameDraws += draws;
+
+				if (myWins > theirWins) {
+					seatWins += 1;
+					current.playerMatchWins += 1;
+				} else if (theirWins > myWins) {
+					seatLosses += 1;
+					current.playerMatchLosses += 1;
+				} else {
+					current.playerMatchDraws += 1;
+				}
+			}
+
+			if (seatWins > seatLosses) {
+				current.teamWins += 1;
+			} else if (seatLosses > seatWins) {
+				current.teamLosses += 1;
+			} else {
+				current.teamDraws += 1;
+			}
+
+			historyByOpponent.set(opponentId, current);
+		}
+	}
+
+	return [...historyByOpponent.values()].sort((a, b) => a.opponentName.localeCompare(b.opponentName));
+}
+
+function renderMatchupHistory(event, selectedTeamId) {
+	const teamOptions = event.teams
+		.map(
+			(team) =>
+				`<option value="${team.id}" ${team.id === selectedTeamId ? 'selected' : ''}>${team.name}</option>`
+		)
+		.join('');
+
+	const historyRows = summarizeMatchupHistory(event, selectedTeamId)
+		.map(
+			(item) => `<tr>
+	<td>${item.opponentName}</td>
+	<td>${item.teamMatches}</td>
+	<td>${item.teamWins}-${item.teamDraws}-${item.teamLosses}</td>
+	<td>${item.teamGameWins}-${item.teamGameLosses}</td>
+	<td>${item.playerMatchWins}-${item.playerMatchDraws}-${item.playerMatchLosses}</td>
+	<td>${item.playerGameWins}-${item.playerGameDraws}-${item.playerGameLosses}</td>
+</tr>`
+		)
+		.join('');
+
+	return `<label class="matchup-select">Team matchup focus
+	<select id="matchup-team-select">${teamOptions}</select>
+</label>
+<div class="table-wrap"><table>
+	<thead><tr><th>Opponent Team</th><th>Matches</th><th>Team W-D-L</th><th>Team Games W-L</th><th>Player Seats W-D-L</th><th>Player Games W-D-L</th></tr></thead>
+	<tbody>${historyRows || '<tr><td colspan="6">No matchup history yet.</td></tr>'}</tbody>
+</table></div>`;
 }
 
 function render() {
@@ -115,6 +240,9 @@ function render() {
 	if (!activeEvent) {
 		app.innerHTML = '<p>No events found.</p>';
 		return;
+	}
+	if (!uiState.matchupTeamId || !activeEvent.teams.some((team) => team.id === uiState.matchupTeamId)) {
+		uiState.matchupTeamId = activeEvent.teams[0]?.id ?? null;
 	}
 
 	app.innerHTML = `<main>
@@ -140,6 +268,10 @@ function render() {
 		${renderStandings(activeEvent)}
 	</section>
 	<section class="card">
+		<h2>Team Matchup History</h2>
+		${renderMatchupHistory(activeEvent, uiState.matchupTeamId)}
+	</section>
+	<section class="card">
 		<h2>Rounds & Results</h2>
 		${activeEvent.rounds.length ? renderPairings(activeEvent) : '<p>No rounds yet.</p>'}
 	</section>
@@ -151,7 +283,13 @@ function render() {
 function wireHandlers() {
 	document.querySelector('#event-select').addEventListener('change', (event) => {
 		state.activeEventId = event.target.value;
+		uiState.matchupTeamId = null;
 		persistAndRender();
+	});
+
+	document.querySelector('#matchup-team-select').addEventListener('change', (event) => {
+		uiState.matchupTeamId = event.target.value;
+		render();
 	});
 
 	document.querySelector('#create-event').addEventListener('click', () => {
