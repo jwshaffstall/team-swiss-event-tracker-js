@@ -32,3 +32,7 @@ npm run dev
 - Pairings avoid teammate pairings by pairing at the team-vs-team level.
 - Pairings attempt to avoid rematches and only allow if unavoidable.
 - GitHub Pages project URL is `https://<user>.github.io/team-swiss-event-tracker-js/`; root-domain paths like `/src/main.js` are outside this project's Pages scope.
+
+## License
+
+Released into the public domain under the [Unlicense](UNLICENSE).
