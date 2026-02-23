@@ -4,7 +4,7 @@ Offline-first static website for running **T-team / P-players-per-team MTG team 
 
 - Unlimited rounds (create next round on demand)
 - Team/player editing at any time
-- BO3 player match results by seat
+- Player match results by seat (0 to 3 total games played)
 - Auto team standings + tie breakers (Buchholz and OMW%)
 - Local storage for multiple events
 - Publish current event state into a standalone static HTML snapshot
@@ -31,3 +31,4 @@ npm run dev
 - Team count must be even for pairings.
 - Pairings avoid teammate pairings by pairing at the team-vs-team level.
 - Pairings attempt to avoid rematches and only allow if unavoidable.
+- GitHub Pages project URL is `https://<user>.github.io/team-swiss-event-tracker-js/`; root-domain paths like `/src/main.js` are outside this project's Pages scope.
