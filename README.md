@@ -2,9 +2,9 @@
 
 Demo deployment: https://jwshaffstall.github.io/team-swiss-event-tracker-js/
 
-Offline-first static website for running **T-team / P-players-per-team MTG team swiss** events with:
+> This project was developed with assistance from AI programming agents, including OpenAI Codex.
 
-> Portions of this project were developed with assistance from AI programming agents, including OpenAI Codex.
+Offline-first static website for running **T-team / P-players-per-team MTG team swiss** events with:
 
 - Unlimited rounds (create next round on demand)
 - Team/player editing at any time
