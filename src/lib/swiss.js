@@ -12,11 +12,7 @@ export const MIN_PLAYERS_PER_TEAM = 1;
 export const MAX_PLAYERS_PER_TEAM = 8;
 
 function validateEventStructure(teamCount, playersPerTeam) {
-	if (
-		!Number.isInteger(teamCount) ||
-		teamCount < MIN_TEAM_COUNT ||
-		teamCount > MAX_TEAM_COUNT
-	) {
+	if (!Number.isInteger(teamCount) || teamCount < MIN_TEAM_COUNT || teamCount > MAX_TEAM_COUNT) {
 		throw new Error(
 			`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`
 		);

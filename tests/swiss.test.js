@@ -106,7 +106,6 @@ describe('swiss event engine', () => {
 		}
 	});
 
-
 	it('supports odd team counts by assigning one player a bye each round', () => {
 		const event = createEvent({ name: 'Odd Teams', teamCount: 5, playersPerTeam: 3 });
 		const nextRound = generateNextRound(event);

@@ -481,8 +481,14 @@ function wireHandlers() {
 		const name = document.querySelector('#new-event-name').value;
 		const teamCount = Number(document.querySelector('#new-event-teams').value);
 		const playersPerTeam = Number(document.querySelector('#new-event-players').value);
-		if (!Number.isInteger(teamCount) || teamCount < MIN_TEAM_COUNT || teamCount > MAX_TEAM_COUNT) {
-			window.alert(`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`);
+		if (
+			!Number.isInteger(teamCount) ||
+			teamCount < MIN_TEAM_COUNT ||
+			teamCount > MAX_TEAM_COUNT
+		) {
+			window.alert(
+				`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`
+			);
 			return;
 		}
 		if (
@@ -505,8 +511,14 @@ function wireHandlers() {
 	document.querySelector('#resize-event').addEventListener('click', () => {
 		const teamCount = Number(document.querySelector('#resize-event-teams').value);
 		const playersPerTeam = Number(document.querySelector('#resize-event-players').value);
-		if (!Number.isInteger(teamCount) || teamCount < MIN_TEAM_COUNT || teamCount > MAX_TEAM_COUNT) {
-			window.alert(`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`);
+		if (
+			!Number.isInteger(teamCount) ||
+			teamCount < MIN_TEAM_COUNT ||
+			teamCount > MAX_TEAM_COUNT
+		) {
+			window.alert(
+				`Team count must be a whole number between ${MIN_TEAM_COUNT} and ${MAX_TEAM_COUNT}.`
+			);
 			return;
 		}
 		if (
