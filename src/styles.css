@@ -61,6 +61,10 @@ main {
 	gap: 0.8rem;
 }
 
+.toolbar > * {
+	min-width: 0;
+}
+
 label {
 	display: flex;
 	flex-direction: column;
@@ -77,10 +81,13 @@ button {
 	border-radius: 0.4rem;
 	padding: 0.45rem;
 	width: 100%;
+	font: inherit;
 }
 
 button {
 	cursor: pointer;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 button:hover {
@@ -126,6 +133,7 @@ ul {
 @media (max-width: 767px) {
 	main {
 		padding: 1rem 0.75rem 1.5rem;
+		gap: 0.75rem;
 	}
 
 	.top-row {
@@ -133,7 +141,7 @@ ul {
 	}
 
 	.top-row h1 {
-		font-size: 1.9rem;
+		font-size: clamp(1.65rem, 8vw, 2.1rem);
 	}
 
 	.top-row label {
@@ -142,6 +150,19 @@ ul {
 
 	.toolbar {
 		grid-template-columns: 1fr;
+		gap: 0.65rem;
+	}
+
+	.toolbar button {
+		text-align: left;
+		min-height: 2.9rem;
+		padding: 0.7rem 0.75rem;
+	}
+
+	input,
+	select,
+	button {
+		font-size: 16px;
 	}
 
 	.teams-grid {
@@ -150,5 +171,6 @@ ul {
 
 	.card {
 		padding: 0.8rem;
+		border-radius: 0.55rem;
 	}
 }
