@@ -1,4 +1,3 @@
-import './styles.css';
 import { downloadPublishedHtml } from './lib/publish.js';
 import { loadState, saveState } from './lib/storage.js';
 import {
