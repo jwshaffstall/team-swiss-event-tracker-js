@@ -2,6 +2,8 @@
 
 Offline-first static website for running **T-team / P-players-per-team MTG team swiss** events with:
 
+> Portions of this project were developed with assistance from AI programming agents, including OpenAI Codex.
+
 - Unlimited rounds (create next round on demand)
 - Team/player editing at any time
 - Player match results per pairing (wins are 0 to 2, plus optional draws, with up to 3 games total)
