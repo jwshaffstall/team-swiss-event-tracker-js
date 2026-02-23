@@ -82,11 +82,13 @@ function scoreSort(teamA, teamB, standingsMap) {
 
 function availableOpponentCount(player, players, playerOpponentsByTeam) {
 	const knownOpponents = playerOpponentsByTeam.get(player.id) ?? new Set();
-	return players.filter((candidate) => candidate.teamId !== player.teamId).length +
+	return (
+		players.filter((candidate) => candidate.teamId !== player.teamId).length +
 		players.filter(
 			(candidate) =>
 				candidate.teamId !== player.teamId && !knownOpponents.has(candidate.teamId)
-		).length;
+		).length
+	);
 }
 
 function pairScore(playerA, playerB, standingsRank, playerOpponentsByTeam, seenTeamOpponents) {
@@ -144,7 +146,12 @@ function tryPairPlayers(players, standingsRank, playerOpponentsByTeam, seenTeamO
 		);
 		if (recursion) {
 			return [
-				{ teamAId: first.teamId, teamBId: candidate.teamId, playerAId: first.id, playerBId: candidate.id },
+				{
+					teamAId: first.teamId,
+					teamBId: candidate.teamId,
+					playerAId: first.id,
+					playerBId: candidate.id,
+				},
 				...recursion,
 			];
 		}
