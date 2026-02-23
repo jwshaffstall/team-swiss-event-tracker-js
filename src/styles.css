@@ -52,6 +52,30 @@ section {
 	min-width: min(100%, 15rem);
 }
 
+.top-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	align-items: end;
+}
+
+.toggle-field {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.5rem;
+	border: 1px solid #475569;
+	border-radius: 0.45rem;
+	padding: 0.45rem 0.6rem;
+	background: #0f172a;
+	min-width: auto;
+}
+
+.toggle-field input[type='checkbox'] {
+	width: auto;
+	transform: scale(1.1);
+}
+
 .card {
 	background: rgba(15, 23, 42, 0.9);
 	border: 1px solid #334155;
@@ -144,12 +168,53 @@ td {
 	margin-bottom: 0.8rem;
 }
 
+.draft-controls {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+	gap: 0.7rem;
+	align-items: end;
+	margin-bottom: 0.8rem;
+}
+
+.draft-summary {
+	margin: 0;
+	font-size: 0.92rem;
+	color: #cbd5e1;
+}
+
+.draft-table-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 0.7rem;
+}
+
+.draft-table h3 {
+	margin-bottom: 0.6rem;
+}
+
 ul {
 	list-style: none;
 	padding: 0;
 	margin: 0;
 	display: grid;
 	gap: 0.5rem;
+}
+
+.player-edit-label {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.player-prefix {
+	font-size: 0.85rem;
+	color: #cbd5e1;
+	padding: 0.25rem 0.4rem;
+	background: #1e293b;
+	border: 1px solid #334155;
+	border-radius: 0.35rem;
+	white-space: nowrap;
 }
 
 @media (max-width: 767px) {
@@ -167,6 +232,15 @@ ul {
 	}
 
 	.top-row label {
+		width: 100%;
+	}
+
+	.top-controls {
+		width: 100%;
+	}
+
+	.toggle-field {
+		justify-content: space-between;
 		width: 100%;
 	}
 
@@ -200,6 +274,10 @@ ul {
 	.card {
 		padding: 0.8rem;
 		border-radius: 0.55rem;
+	}
+
+	.draft-table-grid {
+		grid-template-columns: 1fr;
 	}
 
 	table {

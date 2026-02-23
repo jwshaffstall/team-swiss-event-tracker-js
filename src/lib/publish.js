@@ -1,4 +1,5 @@
 import { calculateStandings } from './swiss.js';
+import { formatPlayerDisplayName } from './playerDisplay.js';
 
 function escapeHtml(value) {
 	return String(value)
@@ -44,7 +45,15 @@ export function generatePublishedHtml(event) {
 							const bPlayer = teamB.players.find(
 								(player) => player.id === pm.teamBPlayerId
 							);
-							return `<tr><td>${pm.seat + 1}</td><td>${escapeHtml(aPlayer?.name ?? 'Unknown')}</td><td>${pm.winsA}</td><td>${pm.draws ?? 0}</td><td>${pm.winsB}</td><td>${escapeHtml(bPlayer?.name ?? 'Unknown')}</td></tr>`;
+							const aDisplay =
+								teamA && aPlayer
+									? formatPlayerDisplayName(teamA, aPlayer)
+									: 'Unknown';
+							const bDisplay =
+								teamB && bPlayer
+									? formatPlayerDisplayName(teamB, bPlayer)
+									: 'Unknown';
+							return `<tr><td>${pm.seat + 1}</td><td>${escapeHtml(aDisplay)}</td><td>${pm.winsA}</td><td>${pm.draws ?? 0}</td><td>${pm.winsB}</td><td>${escapeHtml(bDisplay)}</td></tr>`;
 						})
 						.join('');
 					return `<article class="match"><h3>${escapeHtml(teamA.name)} vs ${escapeHtml(teamB.name)}</h3><table><thead><tr><th>Seat</th><th>${escapeHtml(teamA.name)}</th><th>Wins</th><th>Draws</th><th>Wins</th><th>${escapeHtml(teamB.name)}</th></tr></thead><tbody>${seatRows}</tbody></table></article>`;

@@ -3,6 +3,7 @@ import {
 	calculateStandings,
 	createEvent,
 	generateNextRound,
+	resizeEventStructure,
 	validatePlayerMatchScore,
 } from '../src/lib/swiss.js';
 import { generatePublishedHtml } from '../src/lib/publish.js';
@@ -18,6 +19,8 @@ describe('swiss event engine', () => {
 		const event = createEvent({ name: 'League', teamCount: 4, playersPerTeam: 3 });
 		expect(event.teams).toHaveLength(4);
 		expect(event.teams[0].players).toHaveLength(3);
+		expect(event.teams[0].players[0].name).toBe('Player A');
+		expect(event.teams[0].players[1].name).toBe('Player B');
 		expect(event.rounds).toEqual([]);
 	});
 
@@ -81,6 +84,31 @@ describe('swiss event engine', () => {
 		expect(validatePlayerMatchScore(3, 0)).toBe(false);
 		expect(validatePlayerMatchScore(2, 2)).toBe(false);
 		expect(validatePlayerMatchScore(2, 1, 1)).toBe(false);
+	});
+
+	it('resizes event structure and clears existing rounds', () => {
+		let event = createEvent({ name: 'Resize Me', teamCount: 4, playersPerTeam: 2 });
+		event = generateNextRound(event);
+
+		const originalTeamId = event.teams[0].id;
+		const originalPlayerId = event.teams[0].players[0].id;
+		const resized = resizeEventStructure(event, { teamCount: 6, playersPerTeam: 3 });
+
+		expect(resized.teams).toHaveLength(6);
+		expect(resized.playersPerTeam).toBe(3);
+		expect(resized.rounds).toEqual([]);
+		expect(resized.teams[0].id).toBe(originalTeamId);
+		expect(resized.teams[0].players[0].id).toBe(originalPlayerId);
+	});
+
+	it('shrinks teams and players when resizing down', () => {
+		const event = createEvent({ name: 'Resize Down', teamCount: 6, playersPerTeam: 4 });
+		const resized = resizeEventStructure(event, { teamCount: 3, playersPerTeam: 2 });
+
+		expect(resized.teams).toHaveLength(3);
+		for (const team of resized.teams) {
+			expect(team.players).toHaveLength(2);
+		}
 	});
 });
 

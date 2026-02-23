@@ -1,9 +1,18 @@
 import { downloadPublishedHtml } from './lib/publish.js';
 import { loadState, saveState } from './lib/storage.js';
+import { assignPlayersToDraftTables, buildBalancedTableSizes } from './lib/draftTables.js';
+import {
+	formatPlayerDisplayName,
+	getDefaultPlayerName,
+	getPlayerBaseName,
+	getTeamInitials,
+	getTeamPlayerNumber,
+} from './lib/playerDisplay.js';
 import {
 	calculateStandings,
 	createEvent,
 	generateNextRound,
+	resizeEventStructure,
 	validatePlayerMatchScore,
 } from './lib/swiss.js';
 
@@ -11,6 +20,8 @@ const app = document.querySelector('#app');
 const state = loadState();
 const uiState = {
 	matchupTeamId: null,
+	draftLayoutMode: false,
+	draftTableCount: null,
 };
 
 if (!state.events.length) {
@@ -54,10 +65,12 @@ function renderTeamEditor(event) {
 	<h3><input data-team-name="${team.id}" value="${team.name}" /></h3>
 	<ul>
 		${team.players
-			.map(
-				(player) =>
-					`<li><input data-player-name="${team.id}:${player.id}" value="${player.name}" /></li>`
-			)
+			.map((player) => {
+				const initials = getTeamInitials(team.name);
+				const playerNumber = getTeamPlayerNumber(team, player.id);
+				const playerValue = getPlayerBaseName(team, player);
+				return `<li><label class="player-edit-label"><span class="player-prefix">${initials}-${playerNumber}</span><input data-player-name="${team.id}:${player.id}" value="${playerValue}" /></label></li>`;
+			})
 			.join('')}
 	</ul>
 </article>`
@@ -83,11 +96,11 @@ function renderPairings(event) {
 							);
 							return `<tr>
 		<td>${pm.seat + 1}</td>
-		<td>${playerA?.name ?? 'Unknown'}</td>
+		<td>${playerA ? formatPlayerDisplayName(teamA, playerA) : 'Unknown'}</td>
 		<td><input type="number" min="0" max="2" data-score="${round.id}:${match.id}:${pm.id}:A" value="${pm.winsA}" /></td>
 		<td><input type="number" min="0" max="3" data-score="${round.id}:${match.id}:${pm.id}:D" value="${pm.draws ?? 0}" /></td>
 		<td><input type="number" min="0" max="2" data-score="${round.id}:${match.id}:${pm.id}:B" value="${pm.winsB}" /></td>
-		<td>${playerB?.name ?? 'Unknown'}</td>
+		<td>${playerB ? formatPlayerDisplayName(teamB, playerB) : 'Unknown'}</td>
 	</tr>`;
 						})
 						.join('');
@@ -235,6 +248,78 @@ function renderMatchupHistory(event, selectedTeamId) {
 </table></div>`;
 }
 
+function formatTableSizes(tableSizes) {
+	return tableSizes.join('/');
+}
+
+function getDraftLayoutContext(event) {
+	const totalPlayers = event.teams.reduce((count, team) => count + team.players.length, 0);
+	if (totalPlayers < 1) {
+		return { totalPlayers, minTableCount: 1, maxTableCount: 1, selectedTableCount: 1 };
+	}
+
+	const minTableCount = 1;
+	const maxTableCount = totalPlayers;
+	if (!Number.isInteger(uiState.draftTableCount)) {
+		uiState.draftTableCount = Math.max(1, Math.ceil(totalPlayers / 8));
+	}
+	const selectedTableCount = Math.min(
+		maxTableCount,
+		Math.max(minTableCount, uiState.draftTableCount)
+	);
+	if (selectedTableCount !== uiState.draftTableCount) {
+		uiState.draftTableCount = selectedTableCount;
+	}
+	return { totalPlayers, minTableCount, maxTableCount, selectedTableCount };
+}
+
+function renderDraftTableLayout(event) {
+	const { totalPlayers, minTableCount, maxTableCount, selectedTableCount } =
+		getDraftLayoutContext(event);
+	const tableSizes = buildBalancedTableSizes(totalPlayers, selectedTableCount);
+	const assignment = assignPlayersToDraftTables(event, tableSizes);
+	const teammateSummary =
+		assignment.sameTableTeammatePairs === 0
+			? 'No teammates share a table in this layout.'
+			: `${assignment.sameTableTeammatePairs} teammate pairings share a table in this placement.`;
+	const formatLabel = selectedTableCount === 1 ? 'table' : 'tables';
+	const sealedSummary =
+		selectedTableCount === totalPlayers ? ' Sealed-style mode: one player per table.' : '';
+	const tableCards = assignment.tables
+		.map((table) => {
+			const seatRows = table.players
+				.map((entry, seatIndex) => {
+					const team = event.teams.find((item) => item.id === entry.teamId);
+					const player = team?.players.find((item) => item.id === entry.playerId);
+					return `<tr>
+	<td>${seatIndex + 1}</td>
+	<td>${team && player ? formatPlayerDisplayName(team, player) : entry.playerName}</td>
+	<td>${entry.teamName}</td>
+</tr>`;
+				})
+				.join('');
+			return `<article class="draft-table card">
+	<h3>Table ${table.tableNumber} (${table.players.length}/${table.capacity})</h3>
+	<div class="table-wrap"><table>
+		<thead><tr><th>Seat</th><th>Player</th><th>Team</th></tr></thead>
+		<tbody>${seatRows}</tbody>
+	</table></div>
+</article>`;
+		})
+		.join('');
+
+	return `<section class="card">
+	<h2>Draft Table Placement</h2>
+	<div class="draft-controls">
+		<label>Draft table count
+			<input id="draft-table-count" type="number" min="${minTableCount}" max="${maxTableCount}" value="${selectedTableCount}" />
+		</label>
+		<p class="draft-summary">${totalPlayers} players. ${selectedTableCount} ${formatLabel} (${formatTableSizes(tableSizes)}). ${teammateSummary}${sealedSummary}</p>
+	</div>
+	<div class="draft-table-grid">${tableCards}</div>
+</section>`;
+}
+
 function render() {
 	const activeEvent = getActiveEvent();
 	if (!activeEvent) {
@@ -251,13 +336,22 @@ function render() {
 	app.innerHTML = `<main>
 	<header class="top-row">
 		<h1>Team Swiss Tracker</h1>
-		${renderEventSelector(activeEvent)}
+		<div class="top-controls">
+			${renderEventSelector(activeEvent)}
+			<label class="toggle-field">
+				<span>Draft table mode</span>
+				<input id="draft-mode-toggle" type="checkbox" ${uiState.draftLayoutMode ? 'checked' : ''} />
+			</label>
+		</div>
 	</header>
 	<section class="toolbar card">
 		<label>New event name <input id="new-event-name" placeholder="Weekend League" /></label>
 		<label>Teams <input id="new-event-teams" type="number" min="2" step="2" value="4" /></label>
 		<label>Players / team <input id="new-event-players" type="number" min="1" value="3" /></label>
 		<button id="create-event">Create Event</button>
+		<label>Resize teams <input id="resize-event-teams" type="number" min="1" value="${activeEvent.teams.length}" /></label>
+		<label>Resize players / team <input id="resize-event-players" type="number" min="1" value="${activeEvent.playersPerTeam}" /></label>
+		<button id="resize-event">Apply Event Size</button>
 		<button id="delete-event" class="danger">Delete Active Event</button>
 		<button id="next-round">Generate Next Round</button>
 		<button id="publish-event">Publish HTML Snapshot</button>
@@ -266,6 +360,7 @@ function render() {
 		<h2>Teams & Players</h2>
 		<div class="teams-grid">${renderTeamEditor(activeEvent)}</div>
 	</section>
+	${uiState.draftLayoutMode ? renderDraftTableLayout(activeEvent) : ''}
 	<section class="card">
 		<h2>Standings</h2>
 		${renderStandings(activeEvent)}
@@ -290,6 +385,19 @@ function wireHandlers() {
 		persistAndRender();
 	});
 
+	document.querySelector('#draft-mode-toggle').addEventListener('change', (event) => {
+		uiState.draftLayoutMode = event.target.checked;
+		render();
+	});
+
+	const draftTableCountInput = document.querySelector('#draft-table-count');
+	if (draftTableCountInput) {
+		draftTableCountInput.addEventListener('change', (event) => {
+			uiState.draftTableCount = Number(event.target.value);
+			render();
+		});
+	}
+
 	document.querySelector('#matchup-team-select').addEventListener('change', (event) => {
 		uiState.matchupTeamId = event.target.value;
 		render();
@@ -311,6 +419,34 @@ function wireHandlers() {
 		state.events.push(event);
 		state.activeEventId = event.id;
 		persistAndRender();
+	});
+
+	document.querySelector('#resize-event').addEventListener('click', () => {
+		const teamCount = Number(document.querySelector('#resize-event-teams').value);
+		const playersPerTeam = Number(document.querySelector('#resize-event-players').value);
+		if (!Number.isInteger(teamCount) || teamCount < 1) {
+			window.alert('Team count must be a whole number >= 1.');
+			return;
+		}
+		if (!Number.isInteger(playersPerTeam) || playersPerTeam < 1) {
+			window.alert('Players per team must be a whole number >= 1.');
+			return;
+		}
+
+		const activeEvent = getActiveEvent();
+		const structureChanged =
+			activeEvent.teams.length !== teamCount || activeEvent.playersPerTeam !== playersPerTeam;
+		if (
+			structureChanged &&
+			activeEvent.rounds.length > 0 &&
+			!window.confirm(
+				'Changing team count or players per team clears existing rounds. Continue?'
+			)
+		) {
+			return;
+		}
+
+		updateActiveEvent((event) => resizeEventStructure(event, { teamCount, playersPerTeam }));
 	});
 
 	document.querySelector('#delete-event').addEventListener('click', () => {
@@ -353,7 +489,8 @@ function wireHandlers() {
 			updateActiveEvent((current) => {
 				const team = current.teams.find((item) => item.id === teamId);
 				const player = team.players.find((item) => item.id === playerId);
-				player.name = event.target.value.trim() || player.name;
+				const playerNumber = getTeamPlayerNumber(team, player.id);
+				player.name = event.target.value.trim() || getDefaultPlayerName(playerNumber - 1);
 				return current;
 			});
 		});

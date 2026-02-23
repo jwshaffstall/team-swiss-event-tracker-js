@@ -1,3 +1,5 @@
+import { getDefaultPlayerName } from './playerDisplay.js';
+
 const MATCH_POINTS = {
 	win: 3,
 	draw: 1,
@@ -10,7 +12,7 @@ export function createTeam(index, playersPerTeam) {
 		name: `Team ${index + 1}`,
 		players: Array.from({ length: playersPerTeam }, (_, pIndex) => ({
 			id: crypto.randomUUID(),
-			name: `Player ${index + 1}.${pIndex + 1}`,
+			name: getDefaultPlayerName(pIndex),
 		})),
 	};
 }
@@ -26,18 +28,104 @@ export function createEvent({ name, teamCount, playersPerTeam }) {
 	};
 }
 
+function resizeTeamPlayers(team, playersPerTeam) {
+	if (team.players.length === playersPerTeam) {
+		return team;
+	}
+
+	if (team.players.length > playersPerTeam) {
+		return {
+			...team,
+			players: team.players.slice(0, playersPerTeam),
+		};
+	}
+
+	const appendedPlayers = Array.from(
+		{ length: playersPerTeam - team.players.length },
+		(_, offset) => ({
+			id: crypto.randomUUID(),
+			name: getDefaultPlayerName(team.players.length + offset),
+		})
+	);
+	return {
+		...team,
+		players: [...team.players, ...appendedPlayers],
+	};
+}
+
+export function resizeEventStructure(event, { teamCount, playersPerTeam }) {
+	if (!Number.isInteger(teamCount) || teamCount < 1) {
+		throw new Error('Team count must be a whole number >= 1.');
+	}
+	if (!Number.isInteger(playersPerTeam) || playersPerTeam < 1) {
+		throw new Error('Players per team must be a whole number >= 1.');
+	}
+
+	const nextTeams = [];
+	const reusedTeams = event.teams.slice(0, teamCount);
+	for (let index = 0; index < reusedTeams.length; index += 1) {
+		nextTeams.push(resizeTeamPlayers(reusedTeams[index], playersPerTeam));
+	}
+
+	for (let index = reusedTeams.length; index < teamCount; index += 1) {
+		nextTeams.push(createTeam(index, playersPerTeam));
+	}
+
+	const structureChanged =
+		event.teams.length !== teamCount ||
+		event.playersPerTeam !== playersPerTeam ||
+		nextTeams.some((team) => team.players.length !== playersPerTeam);
+
+	return {
+		...event,
+		playersPerTeam,
+		teams: nextTeams,
+		rounds: structureChanged ? [] : event.rounds,
+	};
+}
+
 function orderedPairKey(a, b) {
 	return [a, b].sort().join(':');
 }
 
-function existingTeamOpponentSet(event) {
-	const seen = new Set();
+function getOpponentCount(opponentCounts, teamId, opponentId) {
+	return opponentCounts.get(teamId)?.get(opponentId) ?? 0;
+}
+
+function incrementOpponentCount(opponentCounts, teamId, opponentId) {
+	const teamCounts = opponentCounts.get(teamId) ?? new Map();
+	teamCounts.set(opponentId, (teamCounts.get(opponentId) ?? 0) + 1);
+	opponentCounts.set(teamId, teamCounts);
+}
+
+function decrementOpponentCount(opponentCounts, teamId, opponentId) {
+	const teamCounts = opponentCounts.get(teamId);
+	if (!teamCounts) {
+		return;
+	}
+	const nextValue = (teamCounts.get(opponentId) ?? 0) - 1;
+	if (nextValue <= 0) {
+		teamCounts.delete(opponentId);
+	} else {
+		teamCounts.set(opponentId, nextValue);
+	}
+	if (teamCounts.size === 0) {
+		opponentCounts.delete(teamId);
+	}
+}
+
+function teamOpponentCountsMap(event) {
+	const opponentCounts = new Map();
 	for (const round of event.rounds) {
 		for (const match of round.matches) {
-			seen.add(orderedPairKey(match.teamAId, match.teamBId));
+			const seatCount = match.playerMatches.length || 1;
+			for (let seat = 0; seat < seatCount; seat += 1) {
+				incrementOpponentCount(opponentCounts, match.teamAId, match.teamBId);
+				incrementOpponentCount(opponentCounts, match.teamBId, match.teamAId);
+			}
 		}
 	}
-	return seen;
+	return opponentCounts;
 }
 
 function playerOpponentTeamsMap(event) {
@@ -91,22 +179,53 @@ function availableOpponentCount(player, players, playerOpponentsByTeam) {
 	);
 }
 
-function pairScore(playerA, playerB, standingsRank, playerOpponentsByTeam, seenTeamOpponents) {
+function pairScore(
+	playerA,
+	playerB,
+	standingsRank,
+	playerOpponentsByTeam,
+	historicalTeamOpponents,
+	currentRoundTeamOpponents
+) {
 	const opponentTeamsForA = playerOpponentsByTeam.get(playerA.id) ?? new Set();
 	const opponentTeamsForB = playerOpponentsByTeam.get(playerB.id) ?? new Set();
 	const aNewTeam = opponentTeamsForA.has(playerB.teamId) ? 0 : 12;
 	const bNewTeam = opponentTeamsForB.has(playerA.teamId) ? 0 : 12;
 	const aRank = standingsRank.get(playerA.teamId) ?? standingsRank.size;
 	const bRank = standingsRank.get(playerB.teamId) ?? standingsRank.size;
-	const swissProximity = Math.max(0, 8 - Math.abs(aRank - bRank));
-	const teamRematchPenalty = seenTeamOpponents.has(orderedPairKey(playerA.teamId, playerB.teamId))
-		? -6
-		: 0;
+	const swissProximity = Math.max(0, 6 - Math.abs(aRank - bRank));
+	const historicalMeetCount = getOpponentCount(
+		historicalTeamOpponents,
+		playerA.teamId,
+		playerB.teamId
+	);
+	const roundMeetCount = getOpponentCount(
+		currentRoundTeamOpponents,
+		playerA.teamId,
+		playerB.teamId
+	);
+	const totalMeetCount = historicalMeetCount + roundMeetCount;
+	const newTeamSpreadBonus = totalMeetCount === 0 ? 36 : 0;
+	const repeatMeetPenalty = totalMeetCount * 10;
+	const roundDuplicatePenalty = roundMeetCount * 40;
 
-	return aNewTeam + bNewTeam + swissProximity + teamRematchPenalty;
+	return (
+		aNewTeam +
+		bNewTeam +
+		swissProximity +
+		newTeamSpreadBonus -
+		repeatMeetPenalty -
+		roundDuplicatePenalty
+	);
 }
 
-function tryPairPlayers(players, standingsRank, playerOpponentsByTeam, seenTeamOpponents) {
+function tryPairPlayers(
+	players,
+	standingsRank,
+	playerOpponentsByTeam,
+	historicalTeamOpponents,
+	currentRoundTeamOpponents
+) {
 	if (players.length === 0) {
 		return [];
 	}
@@ -130,7 +249,8 @@ function tryPairPlayers(players, standingsRank, playerOpponentsByTeam, seenTeamO
 				candidate,
 				standingsRank,
 				playerOpponentsByTeam,
-				seenTeamOpponents
+				historicalTeamOpponents,
+				currentRoundTeamOpponents
 			),
 		}))
 		.sort((a, b) => b.score - a.score)
@@ -138,11 +258,14 @@ function tryPairPlayers(players, standingsRank, playerOpponentsByTeam, seenTeamO
 
 	for (const candidate of candidates) {
 		const remainder = rest.filter((player) => player.id !== candidate.id);
+		incrementOpponentCount(currentRoundTeamOpponents, first.teamId, candidate.teamId);
+		incrementOpponentCount(currentRoundTeamOpponents, candidate.teamId, first.teamId);
 		const recursion = tryPairPlayers(
 			remainder,
 			standingsRank,
 			playerOpponentsByTeam,
-			seenTeamOpponents
+			historicalTeamOpponents,
+			currentRoundTeamOpponents
 		);
 		if (recursion) {
 			return [
@@ -155,6 +278,8 @@ function tryPairPlayers(players, standingsRank, playerOpponentsByTeam, seenTeamO
 				...recursion,
 			];
 		}
+		decrementOpponentCount(currentRoundTeamOpponents, first.teamId, candidate.teamId);
+		decrementOpponentCount(currentRoundTeamOpponents, candidate.teamId, first.teamId);
 	}
 
 	return null;
@@ -174,13 +299,15 @@ export function generateNextRound(event) {
 	const standingsMap = getStandingsMap(event);
 	const orderedTeams = [...event.teams].sort((a, b) => scoreSort(a, b, standingsMap));
 	const standingsRank = new Map(orderedTeams.map((team, index) => [team.id, index]));
-	const seenTeamOpponents = existingTeamOpponentSet(event);
+	const historicalTeamOpponents = teamOpponentCountsMap(event);
+	const currentRoundTeamOpponents = new Map();
 	const playerOpponentsByTeam = playerOpponentTeamsMap(event);
 	const pairings = tryPairPlayers(
 		allPlayers,
 		standingsRank,
 		playerOpponentsByTeam,
-		seenTeamOpponents
+		historicalTeamOpponents,
+		currentRoundTeamOpponents
 	);
 	if (!pairings) {
 		throw new Error('Could not generate valid pairings for this round.');
