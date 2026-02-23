@@ -19,6 +19,7 @@ export default [
 			},
 		},
 		rules: {
+			'linebreak-style': 'off',
 			'no-console': ['warn', { allow: ['error'] }],
 		},
 	},

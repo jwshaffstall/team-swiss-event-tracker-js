@@ -146,23 +146,21 @@ function summarizeMatchupHistory(event, teamId) {
 
 			const opponentId = isTeamA ? match.teamBId : match.teamAId;
 			const opponent = teamsById.get(opponentId);
-			const current =
-				historyByOpponent.get(opponentId) ??
-				{
-					opponentName: opponent?.name ?? 'Unknown Team',
-					teamMatches: 0,
-					teamWins: 0,
-					teamDraws: 0,
-					teamLosses: 0,
-					teamGameWins: 0,
-					teamGameLosses: 0,
-					playerMatchWins: 0,
-					playerMatchDraws: 0,
-					playerMatchLosses: 0,
-					playerGameWins: 0,
-					playerGameDraws: 0,
-					playerGameLosses: 0,
-				};
+			const current = historyByOpponent.get(opponentId) ?? {
+				opponentName: opponent?.name ?? 'Unknown Team',
+				teamMatches: 0,
+				teamWins: 0,
+				teamDraws: 0,
+				teamLosses: 0,
+				teamGameWins: 0,
+				teamGameLosses: 0,
+				playerMatchWins: 0,
+				playerMatchDraws: 0,
+				playerMatchLosses: 0,
+				playerGameWins: 0,
+				playerGameDraws: 0,
+				playerGameLosses: 0,
+			};
 
 			current.teamMatches += 1;
 			let seatWins = 0;
@@ -202,7 +200,9 @@ function summarizeMatchupHistory(event, teamId) {
 		}
 	}
 
-	return [...historyByOpponent.values()].sort((a, b) => a.opponentName.localeCompare(b.opponentName));
+	return [...historyByOpponent.values()].sort((a, b) =>
+		a.opponentName.localeCompare(b.opponentName)
+	);
 }
 
 function renderMatchupHistory(event, selectedTeamId) {
@@ -241,7 +241,10 @@ function render() {
 		app.innerHTML = '<p>No events found.</p>';
 		return;
 	}
-	if (!uiState.matchupTeamId || !activeEvent.teams.some((team) => team.id === uiState.matchupTeamId)) {
+	if (
+		!uiState.matchupTeamId ||
+		!activeEvent.teams.some((team) => team.id === uiState.matchupTeamId)
+	) {
 		uiState.matchupTeamId = activeEvent.teams[0]?.id ?? null;
 	}
 
