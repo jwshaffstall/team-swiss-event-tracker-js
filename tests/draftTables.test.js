@@ -1,5 +1,5 @@
 /**
- * Integration-style unit tests for draftTables.test.
+ * Integration-style unit tests for the draftTables module.
  */
 import { describe, expect, it } from 'vitest';
 import { createEvent } from '../src/lib/swiss.js';
