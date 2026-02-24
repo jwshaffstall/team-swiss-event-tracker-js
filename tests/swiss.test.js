@@ -1,5 +1,5 @@
 /**
- * Integration-style unit tests for swiss.test.
+ * Integration-style unit tests for the swiss module.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
