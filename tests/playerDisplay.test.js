@@ -1,5 +1,5 @@
 /**
- * Integration-style unit tests for playerDisplay.test.
+ * Integration-style unit tests for the playerDisplay module.
  */
 import { describe, expect, it } from 'vitest';
 import {
