@@ -1,3 +1,6 @@
+/**
+ * Integration-style unit tests for the draftTables module.
+ */
 import { describe, expect, it } from 'vitest';
 import { createEvent } from '../src/lib/swiss.js';
 import {
@@ -6,6 +9,12 @@ import {
 	listSuggestedDraftLayouts,
 } from '../src/lib/draftTables.js';
 
+/**
+ * Creates a deterministic RNG for reproducible randomized seating tests.
+ *
+ * @param {number} [seed=1] Seed used to initialize generator state.
+ * @returns {() => number} Deterministic RNG returning values in [0, 1).
+ */
 function createDeterministicRng(seed = 1) {
 	let stateValue = seed >>> 0;
 	return () => {
@@ -14,6 +23,9 @@ function createDeterministicRng(seed = 1) {
 	};
 }
 
+/**
+ * Validates draft table size suggestions and teammate-separation constraints.
+ */
 describe('draft table layouts', () => {
 	it('builds balanced table sizes for a chosen table count', () => {
 		expect(buildBalancedTableSizes(30, 4)).toEqual([8, 8, 7, 7]);

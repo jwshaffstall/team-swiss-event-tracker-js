@@ -1,6 +1,12 @@
 import { calculateStandings } from './swiss.js';
 import { formatPlayerDisplayName } from './playerDisplay.js';
 
+/**
+ * Escapes HTML-sensitive characters to keep generated publish output safe.
+ *
+ * @param {unknown} value Raw value to escape.
+ * @returns {string} HTML-safe text content.
+ */
 function escapeHtml(value) {
 	return String(value)
 		.replaceAll('&', '&amp;')
@@ -10,10 +16,22 @@ function escapeHtml(value) {
 		.replaceAll("'", '&#39;');
 }
 
+/**
+ * Builds a quick lookup table for team IDs used while rendering rounds.
+ *
+ * @param {{teams: Array<{id: string}>}} event Event payload.
+ * @returns {Map<string, object>} Team map keyed by team identifier.
+ */
 function teamLookup(event) {
 	return new Map(event.teams.map((team) => [team.id, team]));
 }
 
+/**
+ * Generates a complete, standalone HTML export for standings and pairings.
+ *
+ * @param {object} event Event data model.
+ * @returns {string} A printable HTML document string.
+ */
 export function generatePublishedHtml(event) {
 	const standings = calculateStandings(event);
 	const teamsById = teamLookup(event);
@@ -96,6 +114,11 @@ export function generatePublishedHtml(event) {
 </html>`;
 }
 
+/**
+ * Downloads the generated event snapshot as a local HTML file.
+ *
+ * @param {object} event Event data model.
+ */
 export function downloadPublishedHtml(event) {
 	const html = generatePublishedHtml(event);
 	const blob = new Blob([html], { type: 'text/html' });

@@ -1,3 +1,9 @@
+/**
+ * Checks whether a value is a positive whole number.
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {boolean} True when the input is a positive integer.
+ */
 function isPositiveInteger(value) {
 	return Number.isInteger(value) && value > 0;
 }
@@ -22,6 +28,13 @@ function teammatePairs(teamCount) {
 	return (teamCount * (teamCount - 1)) / 2;
 }
 
+/**
+ * Splits players across draft tables as evenly as possible.
+ *
+ * @param {number} totalPlayers Total seats to distribute.
+ * @param {number} tableCount Number of tables to create.
+ * @returns {number[]} Ordered list of table capacities.
+ */
 export function buildBalancedTableSizes(totalPlayers, tableCount) {
 	if (!isPositiveInteger(totalPlayers)) {
 		throw new Error('Total players must be a positive integer.');
@@ -39,6 +52,13 @@ export function buildBalancedTableSizes(totalPlayers, tableCount) {
 	);
 }
 
+/**
+ * Returns practical table-count options constrained by table-size bounds.
+ *
+ * @param {number} totalPlayers Total players to seat.
+ * @param {{minTableSize?: number, maxTableSize?: number}} [options] Size constraints.
+ * @returns {Array<{tableCount: number, tableSizes: number[]}>} Suggested layouts.
+ */
 export function listSuggestedDraftLayouts(
 	totalPlayers,
 	{ minTableSize = 4, maxTableSize = 10 } = {}
@@ -333,6 +353,14 @@ function summarizeAssignments(tables) {
 	return { sameTableTeammatePairs, maxTeammatesAtSingleTable };
 }
 
+/**
+ * Assigns players to draft tables while minimizing teammates sharing a table.
+ *
+ * @param {{teams: Array<{id: string, name: string, players: Array<{id: string, name: string}>}>}} event Event team roster.
+ * @param {number[]} tableSizes Capacities for each table.
+ * @param {{randomize?: boolean, rng?: () => number}} [options] Optional deterministic randomization controls.
+ * @returns {{tables: Array<{tableNumber: number, capacity: number, players: Array<object>}>, sameTableTeammatePairs: number}} Seating assignment summary.
+ */
 export function assignPlayersToDraftTables(event, tableSizes, options = {}) {
 	const { randomize = false, rng = Math.random } = options;
 
